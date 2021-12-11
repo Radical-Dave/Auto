@@ -1,0 +1,24 @@
+{
+	"logs": ".\\logs",
+	"tasks": {
+		"date": "get-date",
+		"echo": "echo",
+		"build": ".\\.\\build",
+		"local": "import-module ..\\..\\SharedSitecore\\SitecoreLocal\\src\\SitecoreLocal -force;Install-SitecoreLocal -force -verbose",
+		"import": "import-module ..\\..\\SharedSitecore\\SitecoreLocal\\src\\SitecoreLocal -force -verbose;",
+		"removedbs": "import-module ..\\..\\SharedSitecore\\SitecoreLocal\\src\\SitecoreLocal;Remove-SitecoreLocalDb -prefix 1020 -force -verbose",
+		"local-xc": ".\\scripts\\create\\local\\xc\\install\\install-xc0",
+		"paas": ".\\scripts\\create\\paas\\create-paas",
+		"test": "commands that require set-location:",
+		"local-xc0": "Set-Location scripts\\create\\local\\xc\\install;. .\\install-xc0",
+		"remove-db": ".\\scripts\\create\\local\\remove-db",
+		"remove-iis": ".\\scripts\\create\\local\\remove-iis",
+		"install-solr": ".\\scripts\\create\\local\\XP\\install\\Solr\\install-solr",
+		"transfer": "xcopy {dest} {source} /c /d /e /f /h /i /j /k /o /v /x /y",
+		"cmd": "cmd {cmd} {params}",
+		"install": "choco install {cmd} {params} -y",
+		"sc-latest2": "import-module ..\\..\\SharedSitecore\\SitecoreLocal\\src\\SitecoreLocal",
+		"new-ssl": "import-module ..\\..\\SharedSitecore\\SitecoreLocal\\src\\SitecoreLocal -force ;New-SslCertificate *.dev.localhost -force -verbose",
+		"sc-latest": "Import-Module ..\\..\\SharedSitecore\\SitecoreLocal\\src\\SitecoreLocal -force;Get-SitecoreCompatibility"
+	}
+}
