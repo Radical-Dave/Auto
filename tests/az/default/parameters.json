@@ -1,0 +1,97 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "subscriptionId": {
+          "value": "$(subscription)"
+      },
+      "name": {
+          "value": "$(prefix)-$(envName)-peregrine-func"
+      },
+      "location": {
+          "value": "$(location)"
+      },
+      "hostingPlanNamePreFix": {
+          "value": "$(prefix)-$(envName)-asp-VantageFunctionAppDev"
+      },
+      "serverFarmResourceGroup": {
+          "value": "$(prefix)-$(envName)"
+      },
+      "alwaysOn": {
+          "value": false
+      },
+      "storageAccountName": {
+          "value": "$(prefix)-$(envName)-vntgschedulersa"
+      },
+      "accountType": {
+        "value": "Standard_LRS"
+      },
+      "kind": {
+          "value": "StorageV2"
+      },
+      "accessTier": {
+          "value": "Hot"
+      },
+      "minimumTlsVersion": {
+          "value": "TLS1_2"
+      },
+      "supportsHttpsTrafficOnly": {
+          "value": true
+      },
+      "allowBlobPublicAccess": {
+          "value": false
+      },
+      "allowSharedKeyAccess": {
+          "value": true
+      },
+      "defaultOAuth": {
+          "value": false
+      },
+      "networkAclsBypass": {
+          "value": "AzureServices"
+      },
+      "networkAclsDefaultAction": {
+          "value": "Deny"
+      },
+      "keySource": {
+          "value": "Microsoft.Storage"
+      },
+      "encryptionEnabled": {
+          "value": true
+      },
+      "infrastructureEncryptionEnabled": {
+          "value": true
+      },
+      "sku": {
+          "value": "Dynamic"
+      },
+      "skuCode": {
+          "value": "Y1"
+      },
+      "workerSize": {
+          "value": "0"
+      },
+      "workerSizeId": {
+          "value": "0"
+      },
+      "numberOfWorkers": {
+          "value": "1"
+      },
+      "use32BitWorkerProcess": {
+          "value": true
+      },
+      "packageUri": {
+        "value": "https://vantagestaticassets.blob.core.windows.net/artifacts/Peregrine_Function_App_525.zip?sp=r&st=2021-08-24T21:50:55Z&se=2021-08-25T05:50:55Z&spr=https&sv=2020-08-04&sr=b&sig=H%2FrqWXO4uwQsWmVznTVm3iaci%2FveBsPTS7O72cbkBoc%3D"
+      },
+      "vnet" : {
+        "value": "$(prefix)-$(envName)-peregrine-vnet"
+      },
+      "customTags": {
+        "value": {
+          "Environment": "$(prefix)-$(envName)",
+          "Project": "Peregrine Function App",
+          "Client": "$(prefix) $(envName)"
+        }
+      }
+    }
+}

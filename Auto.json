@@ -1,6 +1,9 @@
 {
 	"logs": ".\\logs",
 	"tasks": {
+		"add": "Name=AutoScript",
+		"del": "Name",
+		"azrg": "az group delete --resource-group $(data) --yes",
 		"date": "get-date",
 		"echo": "echo",
 		"build": ".\\.\\build",
