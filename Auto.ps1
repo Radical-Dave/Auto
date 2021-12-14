@@ -4,7 +4,7 @@
 #####################################################
 <#PSScriptInfo
 
-.VERSION 0.2
+.VERSION 0.3
 
 .GUID 602bc07e-a621-4738-8c27-0edf4a4cea8e
 
@@ -239,8 +239,9 @@ process {
 				#}
 				#Write-Host "base:$base"
 				
-				if (-not (Get-Command -Name 'Install-Scripts' -ErrorAction SilentlyContinue)) {Install-Script -Name Install-Scripts -Confirm:$False -Force}
-				Install-Scripts @('Set-Tokens') #-Verbose
+				#if (-not (Get-Command -Name 'Install-Scripts' -ErrorAction SilentlyContinue)) {Install-Script -Name Install-Scripts -Confirm:$False -Force}
+				#Install-Scripts @('Set-Tokens') #-Verbose
+				if (-not (Get-Command -Name 'Set-Tokens' -ErrorAction SilentlyContinue)) {Install-Script -Name Set-Tokens -Confirm:$False -Force}
 				#Write-Verbose "Set-Tokens:$base\az\$armconfig $base\$prefix\$myResourceGroupName-$armconfig"
 				Set-Tokens "$base\az\$armconfig" "$base\$prefix\$myResourceGroupName-$armconfig" #-Verbose
 
