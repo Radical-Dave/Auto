@@ -4,7 +4,7 @@
 #####################################################
 <#PSScriptInfo
 
-.VERSION 0.9
+.VERSION 0.10
 
 .GUID 602bc07e-a621-4738-8c27-0edf4a4cea8e
 
@@ -232,7 +232,8 @@ process {
 				#az group create --name $myResourceGroupName --location $location
 				
 				if ($data -and (Test-Path "$data")) {
-					$base = $data
+					$deployment = $data
+					$base = Split-Path $deployment -Parent
 				} else {
 					$base = "$(Get-Location)\data"
 					if (!(Test-Path $base)) {
@@ -242,24 +243,26 @@ process {
 				if (!(Test-Path $base)) {
 					throw "data not found:$base"
 				}
+				Write-Host "base:$base"
 
 				#todo:test-paths, az is always base, but checking for customs
-				$templatepath = "$base\$prefix-$envName"
-				if (!(Test-Path $templatepath)) {
-					$templatepath ="$base\$prefix"
+				$deployment = "$base\$prefix-$envName"
+				if (!(Test-Path $deployment)) {
+					$deployment ="$base\$prefix"
 				}
-				if (!(Test-Path templatepath)) {
-					$templatepath ="$base\$prefix"
+				if (!(Test-Path "$deployment")) {
+					$deployment ="$base\$prefix"
 				}
-				if (!(Test-Path templatepath)) {
-					$templatepath ="$base\az"
+				if (!(Test-Path "$deployment")) {
+					$deployment ="$base\az"
 				} 
-				if (!(Test-Path templatepath)) {
-					throw "templatepath not found: $base"
+				if (!(Test-Path $deployment)) {
+					throw "deployment not found: $deployment or $base"
 				}
+				Write-Host "deployment:$deployment"
 
-				Write-Host "Run tasks:$templatepath\tasks.json"
-				$tasks = Get-Content "$templatepath\tasks.json" | ConvertFrom-Json #$steps = @("nsg","vnet","app","api","falcon-app","falcon-api","db-server","db")
+				Write-Host "Run tasks:$deployment\tasks.json"
+				$tasks = Get-Content "$deployment\tasks.json" | ConvertFrom-Json #$steps = @("nsg","vnet","app","api","falcon-app","falcon-api","db-server","db")
 				#Write-Host "tasks:$($tasks.Length)"
 				Write-Host "tasks:$($tasks.tasks -join ',')"
 
@@ -276,7 +279,7 @@ process {
 				#Install-Scripts @('Set-Tokens') #-Verbose
 				if (-not (Get-Command -Name 'Set-Tokens' -ErrorAction SilentlyContinue)) {Install-Script -Name Set-Tokens -Confirm:$False -Force}
 				#Write-Verbose "Set-Tokens:$base\az\$armconfig $base\$prefix\$myResourceGroupName-$armconfig"
-				Set-Tokens "$base\az\$armconfig" "$base\$prefix\$myResourceGroupName-$armconfig" #-Verbose
+				Set-Tokens "$deployment\templates" "$base\$prefix\$myResourceGroupName-$armconfig\templates" #-Verbose
 
 				#if (!(Get-Module -Name Az)) { Install-Module -Name Az -AllowClobber -Confirm:$False -Force }
 
@@ -300,16 +303,24 @@ process {
 						#Write-Host "Creating:$myResourceGroupName-end"
 					}
 				}
-				$aztemplates = "az\templates"
+				$templatepath = "$deployment\templates"
+				if (!(Test-Path $templatepath)) {
+					$templatepath = "$base\az\templates"
+				}
+				if (!(Test-Path $templatepath)) {
+					throw "templatepath not found: $templatepath or $deployment\templates"
+				}
+				Write-Host "templatepath:$templatepath"
+
 				for ($i=0; $i -lt $tasks.tasks.Length; $i++) {
 					$task = $tasks.tasks[$i]
 					$template = $task
 					
 					#if ($task -eq "api") { $template = "app"}
-					if (!(Test-Path "$base\$aztemplates\$template-template.json")) {
+					if (!(Test-Path "$templatepath\$template-template.json")) {
 						if ($task -match '-app$' -or $task -match '-api$'){ $template = "app"}
-						if (!(Test-Path "$base\$aztemplates\$template-template.json")) {
-							Write-Error "File not found:$base\$aztemplates\$template-template.json"
+						if (!(Test-Path "$templatepath\$template-template.json")) {
+							Write-Error "File not found:$templatepath\$template-template.json"
 						}
 					}
 					#Write-Host "test-path:$($base)/templates/$($armconfig)/$($task)-parameters.json"
@@ -321,9 +332,10 @@ process {
 
 					#azdoEnvStatus "inProgress"
 					Write-Host "Creating:$prefix-$envName-$task"
-					#Write-Host "az deployment group create --name $prefix-$envName-$task --resource-group $myResourceGroupName --template-file $base\$aztemplates\$template-template.json --parameters $base\$prefix\$myResourceGroupName-$armconfig\$task-parameters.json"
+					Write-Host "az deployment group create --name $prefix-$envName-$task --resource-group $myResourceGroupName --template-file $templatepath\$template-template.json --parameters $base\$prefix\$myResourceGroupName-$armconfig\$task-parameters.json"
 					try {
-						az deployment group create --name "$prefix-$envName-$task" --resource-group $myResourceGroupName --template-file "$base\$aztemplates\$template-template.json" --parameters "$base\$prefix\$myResourceGroupName-$armconfig\$task-parameters.json"
+						az deployment group create --name "$prefix-$envName-$task" --resource-group $myResourceGroupName --template-file "$templatepath\$template-template.json" --parameters "$base\$prefix\$myResourceGroupName-$armconfig\$task-parameters.json"
+						Write-Host "Created:$prefix-$envName-$task"
 					}
 					catch 
 					{
