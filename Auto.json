@@ -1,5 +1,6 @@
 {
-  "logs": ".\\logs",
+  "data": "~\\data",
+  "logs": "~\\logs",
   "tasks": {
     "add": "name=[AutoScript]",
     "del": "name - delete task",

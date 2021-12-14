@@ -4,7 +4,7 @@
 #####################################################
 <#PSScriptInfo
 
-.VERSION 0.4
+.VERSION 0.5
 
 .GUID 602bc07e-a621-4738-8c27-0edf4a4cea8e
 
@@ -173,6 +173,7 @@ process {
 			if ($action -eq 'az') {
 				Write-Host "RUN:$path"
 
+				#todo: finish working with Nick to use set-env (otherwise use set-envs)
 				@((Split-Path $profile -Parent),$PSScriptRoot,("$currLocation" -ne "$PSScriptRoot" ? $currLocation : ''),(Split-Path $path -Parent)).foreach({
 					try {
 						$p = $_
@@ -223,23 +224,27 @@ process {
 				Write-Host "deploying:$($myResourceGroupName)"
 
 				#az group create --name $myResourceGroupName --location $location
-
-				Write-Host "Run tasks:$path"
-				$tasks = Get-Content $path | ConvertFrom-Json #$steps = @("nsg","vnet","app","api","falcon-app","falcon-api","db-server","db")
-				#Write-Host "tasks:$($tasks.Length)"
-				Write-Host "tasks:$($tasks.tasks -join ',')"
-
+				
 				if ($data -and (Test-Path "$data")) {
 					$base = $data
 				} else {
-					$base = "$(Get-Location)\tests"
+					$base = "$(Get-Location)\data\tests"
 					if (!(Test-Path $base)) {
-						$base = "$PSScriptRoot\tests"
+						$base = "$PSScriptRoot\data\tests"
 					}
 				}
 				if (!(Test-Path $base)) {
-					throw "\tests not found"
+					throw "data not found:$base"
 				}
+				if (!(Test-Path "$base\tasks.json")) {
+					throw "data\tasks.json not found: $base"
+				}
+
+				Write-Host "Run tasks:$path"
+				$tasks = Get-Content "$base\tasks.json" | ConvertFrom-Json #$steps = @("nsg","vnet","app","api","falcon-app","falcon-api","db-server","db")
+				#Write-Host "tasks:$($tasks.Length)"
+				Write-Host "tasks:$($tasks.tasks -join ',')"
+
 				#if (!(Test-Path "$base\templates")) {
 				#	if (!(Test-Path "$PSScriptRoot\templates")) {
 				#		if (!(Test-Path "$PSScriptRoot\tests\az\templates")) {
