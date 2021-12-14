@@ -4,7 +4,7 @@
 #####################################################
 <#PSScriptInfo
 
-.VERSION 0.3
+.VERSION 0.4
 
 .GUID 602bc07e-a621-4738-8c27-0edf4a4cea8e
 
@@ -229,7 +229,17 @@ process {
 				#Write-Host "tasks:$($tasks.Length)"
 				Write-Host "tasks:$($tasks.tasks -join ',')"
 
-				$base = "$PSScriptRoot\tests" #(Get-Location)
+				if ($data -and (Test-Path "$data")) {
+					$base = $data
+				} else {
+					$base = "$(Get-Location)\tests"
+					if (!(Test-Path $base)) {
+						$base = "$PSScriptRoot\tests"
+					}
+				}
+				if (!(Test-Path $base)) {
+					throw "\tests not found"
+				}
 				#if (!(Test-Path "$base\templates")) {
 				#	if (!(Test-Path "$PSScriptRoot\templates")) {
 				#		if (!(Test-Path "$PSScriptRoot\tests\az\templates")) {
