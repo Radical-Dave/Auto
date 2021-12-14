@@ -4,7 +4,7 @@
 #####################################################
 <#PSScriptInfo
 
-.VERSION 0.5
+.VERSION 0.6
 
 .GUID 602bc07e-a621-4738-8c27-0edf4a4cea8e
 
@@ -228,15 +228,15 @@ process {
 				if ($data -and (Test-Path "$data")) {
 					$base = $data
 				} else {
-					$base = "$(Get-Location)\data\tests"
+					$base = "$(Get-Location)\data"
 					if (!(Test-Path $base)) {
-						$base = "$PSScriptRoot\data\tests"
+						$base = "$PSScriptRoot\data"
 					}
 				}
 				if (!(Test-Path $base)) {
 					throw "data not found:$base"
 				}
-				if (!(Test-Path "$base\tasks.json")) {
+				if (!(Test-Path "$base\az\tasks.json")) {
 					throw "data\tasks.json not found: $base"
 				}
 

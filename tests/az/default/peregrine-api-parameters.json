@@ -1,0 +1,64 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+      "subscriptionId": {
+          "value": "$(subscription)"
+      },
+      "name": {
+          "value": "$(prefix)-$(envName)-core-api"
+      },
+      "hostingPlanNamePreFix": {
+          "value": "$(prefix)-$(envName)-asp-"
+      },
+      "serverFarmResourceGroup": {
+          "value": "$(prefix)-$(envName)"
+      },
+      "alwaysOn": {
+          "value": true
+      },
+      "sku": {
+          "value": "PremiumV2"
+      },
+      "skuCode": {
+          "value": "P1v2"
+      },
+      "workerSize": {
+          "value": "3"
+      },
+      "workerSizeId": {
+          "value": "3"
+      },
+      "numberOfWorkers": {
+          "value": "1"
+      },
+      "linuxFxVersion": {
+          "value": "DOCKER|$(dockerRegistry)/vantage-core-api:latest"
+      },
+      "dockerRegistryUrl": {
+          "value": "$(dockerRegistryUrl)"
+      },
+      "dockerRegistryUsername": {
+          "value": "$(dockerRegistryUsername)"
+      },
+      "dockerRegistryPassword": {
+          "value": "$(dockerRegistryPassword)"
+      },
+      "dockerRegistryStartupCommand": {
+          "value": ""
+      },
+      "azFDID": {
+        "value": "$(azFDID)"
+      },
+      "vnet" : {
+        "value": "$(prefix)-$(envName)-vnet"
+      },
+      "customTags": {
+        "value": {
+          "Environment": "$(prefix)-$(envName)",
+          "Project": "$(prefix)",
+          "Client": "$(prefix) $(envName)"
+        }
+      }
+  }
+}

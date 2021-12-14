@@ -1,0 +1,3 @@
+{
+    "tasks":["nsg","vnet","app","api","falcon-app","falcon-api","db-server","db","peregrine-db-server"]
+}
