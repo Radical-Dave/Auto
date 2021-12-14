@@ -4,7 +4,7 @@
 #####################################################
 <#PSScriptInfo
 
-.VERSION 0.8
+.VERSION 0.9
 
 .GUID 602bc07e-a621-4738-8c27-0edf4a4cea8e
 
@@ -242,13 +242,17 @@ process {
 				if (!(Test-Path $base)) {
 					throw "data not found:$base"
 				}
-				#todo:test-paths?
+
+				#todo:test-paths, az is always base, but checking for customs
 				$templatepath = "$base\$prefix-$envName"
 				if (!(Test-Path $templatepath)) {
 					$templatepath ="$base\$prefix"
 				}
 				if (!(Test-Path templatepath)) {
 					$templatepath ="$base\$prefix"
+				}
+				if (!(Test-Path templatepath)) {
+					$templatepath ="$base\az"
 				} 
 				if (!(Test-Path templatepath)) {
 					throw "templatepath not found: $base"
