@@ -1,4 +1,4 @@
 # User-specific files
 #tests
-tests/az/az-test-default
-tests/smoke/smoke-test-default
+data/az/az-test-default
+data/smoke/smoke-test-default

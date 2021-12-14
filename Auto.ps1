@@ -4,7 +4,7 @@
 #####################################################
 <#PSScriptInfo
 
-.VERSION 0.7
+.VERSION 0.8
 
 .GUID 602bc07e-a621-4738-8c27-0edf4a4cea8e
 
@@ -92,18 +92,20 @@ begin {
 	#	throw "ERROR invalid path:$($path)"
 	#}
 
-	try {
-		#$tasks = Get-Content .\auto.json | Out-String | Invoke-Expression
-		$config = (Get-Content $path -Raw) | ConvertFrom-Json
-		#Write-Host "config:$($config)"
-	} catch {
-		throw $_
+	if ($path) {
+		try {
+			#$tasks = Get-Content .\auto.json | Out-String | Invoke-Expression
+			$config = (Get-Content $path -Raw) | ConvertFrom-Json
+			#Write-Host "config:$($config)"
+		} catch {
+			throw $_
+		}
+		Write-Verbose "logs:$($config.logs)"
+		$tasksNode = $config.psobject.properties["tasks"].value
+		#Write-Host "tasksNode:$($tasksNode)"
+		$tasks = $tasksNode.PSObject.Properties
+		#Write-Host "tasks:$($tasks)"
 	}
-	Write-Verbose "logs:$($config.logs)"
-	$tasksNode = $config.psobject.properties["tasks"].value
-	#Write-Host "tasksNode:$($tasksNode)"
-	$tasks = $tasksNode.PSObject.Properties
-	#Write-Host "tasks:$($tasks)"
 }
 process {
 	if ($action -eq 'add' -and $data.IndexOf('=') -gt -1) {
@@ -151,8 +153,12 @@ process {
 			} elseif ($cmd.Substring(0,2) -eq '*\') {
 				$name = $cmd.Remove(0,2)
 				Write-Host "name:$name"
-				#$cmd = (Join-Path $PSScriptRoot ($task.Remove(0,2)))
-				$checkPath = "$(Split-Path $path -Parent)\tests"
+				$checkPath = $data
+				if (!$checkPath) {
+					#$cmd = (Join-Path $PSScriptRoot ($task.Remove(0,2)))
+					$checkPath = "$(Split-Path $path -Parent)\data\tests\nested"
+				}				
+				
 				Write-Host "checkPath:$checkPath"
 				$cmd = Get-ChildItem "$checkPath\$name*" -Recurse | Select-Object FullName
 				if (!$cmd) {
@@ -236,12 +242,20 @@ process {
 				if (!(Test-Path $base)) {
 					throw "data not found:$base"
 				}
-				if (!(Test-Path "$base\az\tasks.json")) {
-					throw "data\tasks.json not found: $base"
+				#todo:test-paths?
+				$templatepath = "$base\$prefix-$envName"
+				if (!(Test-Path $templatepath)) {
+					$templatepath ="$base\$prefix"
+				}
+				if (!(Test-Path templatepath)) {
+					$templatepath ="$base\$prefix"
+				} 
+				if (!(Test-Path templatepath)) {
+					throw "templatepath not found: $base"
 				}
 
-				Write-Host "Run tasks:$base\az\tasks.json"
-				$tasks = Get-Content "$base\az\tasks.json" | ConvertFrom-Json #$steps = @("nsg","vnet","app","api","falcon-app","falcon-api","db-server","db")
+				Write-Host "Run tasks:$templatepath\tasks.json"
+				$tasks = Get-Content "$templatepath\tasks.json" | ConvertFrom-Json #$steps = @("nsg","vnet","app","api","falcon-app","falcon-api","db-server","db")
 				#Write-Host "tasks:$($tasks.Length)"
 				Write-Host "tasks:$($tasks.tasks -join ',')"
 
