@@ -4,7 +4,7 @@
 #####################################################
 <#PSScriptInfo
 
-.VERSION 0.6
+.VERSION 0.7
 
 .GUID 602bc07e-a621-4738-8c27-0edf4a4cea8e
 
@@ -174,7 +174,7 @@ process {
 				Write-Host "RUN:$path"
 
 				#todo: finish working with Nick to use set-env (otherwise use set-envs)
-				@((Split-Path $profile -Parent),$PSScriptRoot,("$currLocation" -ne "$PSScriptRoot" ? $currLocation : ''),(Split-Path $path -Parent)).foreach({
+				@((Split-Path $profile -Parent),$PSScriptRoot,("$currLocation" -ne "$PSScriptRoot" ? $currLocation : ''),$data).foreach({
 					try {
 						$p = $_
 						if ($p) {
@@ -240,8 +240,8 @@ process {
 					throw "data\tasks.json not found: $base"
 				}
 
-				Write-Host "Run tasks:$path"
-				$tasks = Get-Content "$base\tasks.json" | ConvertFrom-Json #$steps = @("nsg","vnet","app","api","falcon-app","falcon-api","db-server","db")
+				Write-Host "Run tasks:$base\az\tasks.json"
+				$tasks = Get-Content "$base\az\tasks.json" | ConvertFrom-Json #$steps = @("nsg","vnet","app","api","falcon-app","falcon-api","db-server","db")
 				#Write-Host "tasks:$($tasks.Length)"
 				Write-Host "tasks:$($tasks.tasks -join ',')"
 
