@@ -33,7 +33,7 @@
             "value": "1"
         },
         "linuxFxVersion": {
-            "value": "DOCKER|$(dockerRegistry)/vantage-ng-app:latest"
+            "value": "DOCKER|$(dockerRegistry)/$(dockerRepository-app):latest"
         },
         "dockerRegistryUrl": {
             "value": "$(dockerRegistryUrl)"
