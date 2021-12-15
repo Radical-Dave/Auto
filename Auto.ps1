@@ -4,7 +4,7 @@
 #####################################################
 <#PSScriptInfo
 
-.VERSION 0.11
+.VERSION 0.12
 
 .GUID 602bc07e-a621-4738-8c27-0edf4a4cea8e
 
@@ -76,7 +76,7 @@ begin {
 	$StopWatch = New-Object -TypeName System.Diagnostics.Stopwatch
 	$StopWatch.Start()
 
-	if (!$path) {
+	if (!$path -and $action -ne 'az') {
 		if (Test-Path "$PSScriptRoot\$PSScriptName.json") {
 			$path = "$PSScriptRoot\$PSScriptName.json"
 		} else {
@@ -232,8 +232,7 @@ process {
 				#az group create --name $myResourceGroupName --location $location
 				
 				if ($data -and (Test-Path "$data")) {
-					$deployment = $data
-					$base = Split-Path $deployment -Parent
+					$base = Split-Path $data -Parent
 				} else {
 					$base = "$(Get-Location)\data"
 					if (!(Test-Path $base)) {
@@ -245,24 +244,28 @@ process {
 				}
 				Write-Host "base:$base"
 
-				#todo:test-paths, az is always base, but checking for customs
-				$deployment = "$base\$prefix-$envName"
-				if (!(Test-Path $deployment)) {
-					$deployment ="$base\$prefix"
+				if (!$path) {
+				
+					#todo:test-paths, az is always base, but checking for customs
+					$path = "$base\$prefix-$envName"
+					if (!(Test-Path "$deployment\$armconfig")) {
+						$path ="$base\$prefix"
+					}
+					if (!(Test-Path "$path\$armconfig")) {
+						$path ="$base\$prefix"
+					}
+					if (!(Test-Path "$deployment\$armconfig")) {
+						$path ="$base\az"
+					} 
+					if (!(Test-Path "$path\$armconfig")) {
+						throw "path not found: $path or $base"
+					}
+					Write-Host "path:$path"
 				}
-				if (!(Test-Path "$deployment")) {
-					$deployment ="$base\$prefix"
-				}
-				if (!(Test-Path "$deployment")) {
-					$deployment ="$base\az"
-				} 
-				if (!(Test-Path $deployment)) {
-					throw "deployment not found: $deployment or $base"
-				}
-				Write-Host "deployment:$deployment"
 
-				Write-Host "Run tasks:$deployment\tasks.json"
-				$tasks = Get-Content "$deployment\tasks.json" | ConvertFrom-Json #$steps = @("nsg","vnet","app","api","falcon-app","falcon-api","db-server","db")
+
+				Write-Host "Run tasks:$path\tasks.json"
+				$tasks = Get-Content "$path\tasks.json" | ConvertFrom-Json #$steps = @("nsg","vnet","app","api","falcon-app","falcon-api","db-server","db")
 				#Write-Host "tasks:$($tasks.Length)"
 				Write-Host "tasks:$($tasks.tasks -join ',')"
 
@@ -278,8 +281,8 @@ process {
 				#if (-not (Get-Command -Name 'Install-Scripts' -ErrorAction SilentlyContinue)) {Install-Script -Name Install-Scripts -Confirm:$False -Force}
 				#Install-Scripts @('Set-Tokens') #-Verbose
 				if (-not (Get-Command -Name 'Set-Tokens' -ErrorAction SilentlyContinue)) {Install-Script -Name Set-Tokens -Confirm:$False -Force}
-				#Write-Verbose "Set-Tokens:$base\az\$armconfig $base\$prefix\$myResourceGroupName-$armconfig"
-				Set-Tokens "$deployment\templates" "$base\$prefix\$myResourceGroupName-$armconfig\templates" #-Verbose
+				#Write-Host "Set-Tokens:$base\az\$armconfig $base\$prefix\$myResourceGroupName-$armconfig"
+				Set-Tokens "$path\$armconfig" "$base\$prefix\$myResourceGroupName-$armconfig" #-Verbose
 
 				#if (!(Get-Module -Name Az)) { Install-Module -Name Az -AllowClobber -Confirm:$False -Force }
 
@@ -303,12 +306,12 @@ process {
 						#Write-Host "Creating:$myResourceGroupName-end"
 					}
 				}
-				$templatepath = "$deployment\templates"
+				$templatepath = "$path\templates"
 				if (!(Test-Path $templatepath)) {
 					$templatepath = "$base\az\templates"
 				}
 				if (!(Test-Path $templatepath)) {
-					throw "templatepath not found: $templatepath or $deployment\templates"
+					throw "templatepath not found: $templatepath or $path\templates"
 				}
 				Write-Host "templatepath:$templatepath"
 
