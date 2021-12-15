@@ -4,7 +4,7 @@
 #####################################################
 <#PSScriptInfo
 
-.VERSION 0.12
+.VERSION 0.13
 
 .GUID 602bc07e-a621-4738-8c27-0edf4a4cea8e
 
@@ -72,7 +72,7 @@ begin {
 	$PSCallingScript = if ($MyInvocation.PSCommandPath) { $MyInvocation.PSCommandPath | Split-Path -Parent } else { $null }
 	Write-Verbose "#####################################################"
 	Write-Host "# $($PSScriptName):$action $data $path called by:$PSCallingScript" -ForegroundColor White
-
+	
 	$StopWatch = New-Object -TypeName System.Diagnostics.Stopwatch
 	$StopWatch.Start()
 
@@ -244,28 +244,29 @@ process {
 				}
 				Write-Host "base:$base"
 
-				if (!$path) {
+				$taskpath = $path
+				if (!$taskpath) {
 				
 					#todo:test-paths, az is always base, but checking for customs
-					$path = "$base\$prefix-$envName"
-					if (!(Test-Path "$deployment\$armconfig")) {
-						$path ="$base\$prefix"
+					$taskpath = "$base\$prefix-$envName"
+					if (!(Test-Path "$taskpath\tasks.json")) {
+						$taskpath ="$base\$prefix"
 					}
-					if (!(Test-Path "$path\$armconfig")) {
-						$path ="$base\$prefix"
+					if (!(Test-Path "$taskpath\tasks.json")) {
+						$taskpath ="$base\$prefix"
 					}
-					if (!(Test-Path "$deployment\$armconfig")) {
-						$path ="$base\az"
+					if (!(Test-Path "$taskpath\tasks.json")) {
+						$taskpath ="$base\az"
 					} 
-					if (!(Test-Path "$path\$armconfig")) {
-						throw "path not found: $path or $base"
+					if (!(Test-Path "$taskpath\tasks.json")) {
+						throw "taskpath not found: $taskpath or $base"
 					}
-					Write-Host "path:$path"
+					Write-Host "taskpath:$taskpath"
 				}
 
 
-				Write-Host "Run tasks:$path\tasks.json"
-				$tasks = Get-Content "$path\tasks.json" | ConvertFrom-Json #$steps = @("nsg","vnet","app","api","falcon-app","falcon-api","db-server","db")
+				Write-Host "Run tasks:$taskpath\tasks.json"
+				$tasks = Get-Content "$taskpath\tasks.json" | ConvertFrom-Json #$steps = @("nsg","vnet","app","api","falcon-app","falcon-api","db-server","db")
 				#Write-Host "tasks:$($tasks.Length)"
 				Write-Host "tasks:$($tasks.tasks -join ',')"
 
@@ -278,11 +279,32 @@ process {
 				#}
 				#Write-Host "base:$base"
 				
+				$armconfigpath = $taskpath
+				if(!$armconfigpath) {$armconfigpath = $base}
+				#todo:test-paths, az is always base, but checking for customs
+				if (Test-Path "$armconfigpath\$armconfig") {
+					#$armconfigpath = "$base"
+				} elseif (Test-Path "$base\$prefix-$envName\$armconfig") {
+					$armconfigpath = "$base\$prefix-$envName"
+				} elseif (Test-Path "$base\$prefix\$armconfig") {
+					$armconfigpath ="$base\$prefix"
+				} else { $armconfigpath = "$base\az"}
+				
+				if (!(Test-Path "$armconfigpath\$armconfig")) {
+					throw "armconfigpath not found: $armconfigpath or $base"
+				}
+				Write-Host "armconfigpath:$armconfigpath"
+
 				#if (-not (Get-Command -Name 'Install-Scripts' -ErrorAction SilentlyContinue)) {Install-Script -Name Install-Scripts -Confirm:$False -Force}
 				#Install-Scripts @('Set-Tokens') #-Verbose
 				if (-not (Get-Command -Name 'Set-Tokens' -ErrorAction SilentlyContinue)) {Install-Script -Name Set-Tokens -Confirm:$False -Force}
 				#Write-Host "Set-Tokens:$base\az\$armconfig $base\$prefix\$myResourceGroupName-$armconfig"
-				Set-Tokens "$path\$armconfig" "$base\$prefix\$myResourceGroupName-$armconfig" #-Verbose
+				if ($VerbosePreference -eq [System.Management.Automation.ActionPreference]::SilentlyContinue) {
+					Set-Tokens "$armconfigpath\$armconfig" "$base\$prefix\$myResourceGroupName-$armconfig"
+				} else {
+					#Write-Host "Verbose"
+					Set-Tokens "$armconfigpath\$armconfig" "$base\$prefix\$myResourceGroupName-$armconfig" -Verbose
+				}
 
 				#if (!(Get-Module -Name Az)) { Install-Module -Name Az -AllowClobber -Confirm:$False -Force }
 
