@@ -4,7 +4,7 @@
 #####################################################
 <#PSScriptInfo
 
-.VERSION 0.13
+.VERSION 0.14
 
 .GUID 602bc07e-a621-4738-8c27-0edf4a4cea8e
 
@@ -216,13 +216,16 @@ process {
 				if (!$prefix) { $prefix = $env:prefix }
 				if (!$prefix) { $prefix = $env:RELEASE_DEFINITIONNAME }
 				if (!$prefix) { $prefix = 'az' }
+				Write-Host "prefix:$($prefix)"
 
 				if (!$envName) { $envName = $env:envName }
 				if (!$envName) { $envName = $env:RELEASE_ENVIRONMENTNAME}
 				if (!$envName) { $envName = 'test'}
-				
+				Write-Host "envName:$($envName)"
+
 				if (!$location) { $location = $env:location }
 				if (!$location) {$location = 'eastus'}
+				Write-Host "location:$($location)"
 
 				if (!$armconfig) { $armconfig = 'default'}
 
@@ -231,12 +234,16 @@ process {
 
 				#az group create --name $myResourceGroupName --location $location
 				
+				Write-Host "data:$($data)"
 				if ($data -and (Test-Path "$data")) {
 					$base = Split-Path $data -Parent
+					Write-Host "base:$($base)"
 				} else {
 					$base = "$(Get-Location)\data"
+					Write-Host "base:$($base)"
 					if (!(Test-Path $base)) {
 						$base = "$PSScriptRoot\data"
+						Write-Host "base:$($base)"
 					}
 				}
 				if (!(Test-Path $base)) {
