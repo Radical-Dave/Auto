@@ -4,7 +4,7 @@
 #####################################################
 <#PSScriptInfo
 
-.VERSION 0.14
+.VERSION 0.15
 
 .GUID 602bc07e-a621-4738-8c27-0edf4a4cea8e
 
@@ -236,7 +236,8 @@ process {
 				
 				Write-Host "data:$($data)"
 				if ($data -and (Test-Path "$data")) {
-					$base = Split-Path $data -Parent
+					#$base = Split-Path $data -Parent
+					$base = $data					
 					Write-Host "base:$($base)"
 				} else {
 					$base = "$(Get-Location)\data"
