@@ -4,7 +4,7 @@
 #####################################################
 <#PSScriptInfo
 
-.VERSION 0.15
+.VERSION 0.16
 
 .GUID 602bc07e-a621-4738-8c27-0edf4a4cea8e
 
@@ -69,9 +69,10 @@ Param(
 )
 begin {
 	$PSScriptName = ($MyInvocation.MyCommand.Name.Replace(".ps1",""))
+	$PSScriptVersion = (Test-ScriptFileInfo -Path $MyInvocation.MyCommand.Path | Select-Object -ExpandProperty Version)
 	$PSCallingScript = if ($MyInvocation.PSCommandPath) { $MyInvocation.PSCommandPath | Split-Path -Parent } else { $null }
 	Write-Verbose "#####################################################"
-	Write-Host "# $($PSScriptName):$action $data $path called by:$PSCallingScript" -ForegroundColor White
+	Write-Host "# $PSScriptName $($PSScriptVersion):$action $data $path called by:$PSCallingScript" -ForegroundColor White
 	
 	$StopWatch = New-Object -TypeName System.Diagnostics.Stopwatch
 	$StopWatch.Start()
@@ -236,8 +237,8 @@ process {
 				
 				Write-Host "data:$($data)"
 				if ($data -and (Test-Path "$data")) {
-					#$base = Split-Path $data -Parent
-					$base = $data					
+					$base = Split-Path $data -Parent
+					#$base = $data					
 					Write-Host "base:$($base)"
 				} else {
 					$base = "$(Get-Location)\data"
