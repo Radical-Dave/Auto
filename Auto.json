@@ -12,6 +12,7 @@
     "install choco": "Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))",
     "report": "dir d:\\*.$(data) -recurse > $(data).txt",
     "test": "invoke-pester .\\*$(data)*.tests.ps1 -output detailed -Verbose",
+    "test-az": "invoke-pester .\\*$(data)*.az*.tests.ps1 -output detailed -Verbose",
     "transfer": "xcopy $(data) /c /d /e /f /h /i /j /k /o /v /x /y",
     "local": "import-module ..\\..\\SharedSitecore\\SitecoreLocal\\src\\SitecoreLocal -force;Install-SitecoreLocal -force -verbose",
     "import": "import-module ..\\..\\SharedSitecore\\SitecoreLocal\\src\\SitecoreLocal -force -verbose;",

@@ -4,7 +4,7 @@
 #####################################################
 <#PSScriptInfo
 
-.VERSION 0.18
+.VERSION 0.19
 
 .GUID 602bc07e-a621-4738-8c27-0edf4a4cea8e
 
@@ -103,7 +103,9 @@ begin {
 		}
 		Write-Verbose "logs:$($config.logs)"
 		try {
+			#Write-Verbose "checking tasks"
 			$tasksNode = $config.psobject.properties["tasks"].value
+			#Write-Verbose "checking props"
 			#Write-Host "tasksNode:$($tasksNode)"
 			$tasks = $tasksNode.PSObject.Properties
 			#Write-Host "tasks:$($tasks)"
@@ -135,6 +137,7 @@ process {
 		$config | ConvertTo-Json | Out-File $path
 	} else {
 		$task = @()
+		Write-Verbose "action:$action"
 		if ($tasks -and $action -ne 'help') {
 			$taskProperty = $tasks[$action]
 			if ($taskProperty) {
