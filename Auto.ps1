@@ -4,7 +4,7 @@
 #####################################################
 <#PSScriptInfo
 
-.VERSION 0.17
+.VERSION 0.18
 
 .GUID 602bc07e-a621-4738-8c27-0edf4a4cea8e
 
@@ -102,10 +102,14 @@ begin {
 			throw $_
 		}
 		Write-Verbose "logs:$($config.logs)"
-		$tasksNode = $config.psobject.properties["tasks"].value
-		#Write-Host "tasksNode:$($tasksNode)"
-		$tasks = $tasksNode.PSObject.Properties
-		#Write-Host "tasks:$($tasks)"
+		try {
+			$tasksNode = $config.psobject.properties["tasks"].value
+			#Write-Host "tasksNode:$($tasksNode)"
+			$tasks = $tasksNode.PSObject.Properties
+			#Write-Host "tasks:$($tasks)"
+		} catch {
+			Write-Verbose "NON-Critical? Error parsing task(s): $_"
+		}
 	}
 }
 process {
