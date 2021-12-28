@@ -4,7 +4,7 @@
 #####################################################
 <#PSScriptInfo
 
-.VERSION 0.16
+.VERSION 0.17
 
 .GUID 602bc07e-a621-4738-8c27-0edf4a4cea8e
 
@@ -72,18 +72,18 @@ begin {
 	$PSScriptVersion = (Test-ScriptFileInfo -Path $MyInvocation.MyCommand.Path | Select-Object -ExpandProperty Version)
 	$PSCallingScript = if ($MyInvocation.PSCommandPath) { $MyInvocation.PSCommandPath | Split-Path -Parent } else { $null }
 	Write-Verbose "#####################################################"
-	Write-Host "# $PSScriptName $($PSScriptVersion):$action $data $path called by:$PSCallingScript" -ForegroundColor White
+	Write-Host "# $PSScriptRoot/$PSScriptName $($PSScriptVersion):$action $data $path called by:$PSCallingScript" -ForegroundColor White
 	
 	$StopWatch = New-Object -TypeName System.Diagnostics.Stopwatch
 	$StopWatch.Start()
 
 	if (!$path -and $action -ne 'az') {
-		if (Test-Path "$PSScriptRoot\$PSScriptName.json") {
-			$path = "$PSScriptRoot\$PSScriptName.json"
+		if (Test-Path "$PSScriptRoot/$PSScriptName.json") {
+			$path = "$PSScriptRoot/$PSScriptName.json"
 		} else {
 			$profileParent =Split-Path $profile -Parent
-			if (Test-Path "$profileParent\$($PSScriptName).json") {
-				$path = "$profileParent\$($PSScriptName).json"
+			if (Test-Path "$profileParent/$($PSScriptName).json") {
+				$path = "$profileParent/$($PSScriptName).json"
 			}
 		}
 	}
@@ -177,9 +177,12 @@ process {
 			if ($action -ne 'help' -and $action -ne 'az') {
 				Write-Host "Task not found in $PSScriptName.json: $action, to add use: -addTask 'AutoScript'" -ForegroundColor White
 			}
-			if ($action -eq 'az') {
+			if ($action -eq 'az' -or $action -eq 'tf') {
 				Write-Host "RUN:$path"
 
+				$envPrefix = ''
+				if ($action -eq 'tf') { $envPrefix = 'TF_VAR_'}
+				
 				#todo: finish working with Nick to use set-env (otherwise use set-envs)
 				@((Split-Path $profile -Parent),$PSScriptRoot,("$currLocation" -ne "$PSScriptRoot" ? $currLocation : ''),$data).foreach({
 					try {
@@ -196,7 +199,7 @@ process {
 											if (-not ($_ -like '#*') -and  ($_ -like '*=*')) {
 												$sp = $_.Split('=')
 												#Write-Host "Set-Env $($sp[0])=$($sp[1])"
-												[System.Environment]::SetEnvironmentVariable($sp[0], $sp[1])
+												[System.Environment]::SetEnvironmentVariable("$envPrefix$sp[0]", $sp[1])
 											}
 										}
 									}
