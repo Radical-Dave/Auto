@@ -1,0 +1,64 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "subscriptionId": {
+            "value": "testid"
+        },
+        "name": {
+            "value": "smoke-test-ng-app"
+        },
+        "hostingPlanNamePreFix": {
+            "value": "smoke-test-asp-"
+        },
+        "serverFarmResourceGroup": {
+            "value": "smoke-test"
+        },
+        "alwaysOn": {
+            "value": true
+        },
+        "sku": {
+            "value": "PremiumV2"
+        },
+        "skuCode": {
+            "value": "P1v2"
+        },
+        "workerSize": {
+            "value": "3"
+        },
+        "workerSizeId": {
+            "value": "3"
+        },
+        "numberOfWorkers": {
+            "value": "1"
+        },
+        "linuxFxVersion": {
+            "value": "DOCKER|scr.sitecore.com/sxp//:latest"
+        },
+        "dockerRegistryUrl": {
+            "value": ""
+        },
+        "dockerRegistryUsername": {
+            "value": ""
+        },
+        "dockerRegistryPassword": {
+            "value": ""
+        },
+        "dockerRegistryStartupCommand": {
+            "value": ""
+        },
+        "azFDID": {
+          "value": ""
+        },
+        "vnet" : {
+          "value": "smoke-test-vnet"
+        },
+        "customTags": {
+          "value": {
+            "Environment": "smoke-test",
+            "Project": "smoke",
+            "Client": "smoke test"
+          }
+        }
+    }
+}

@@ -1,0 +1,30 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "allowAzureIps": {
+            "value": true
+        },
+        "administratorLogin": {
+            "value": "smoke-test-admin"
+        },
+        "administratorLoginPassword": {
+            "value": ""
+        },
+        "enableADS": {
+            "value": false
+        },
+        "serverName": {
+            "value": "smoke-test-db"
+        },
+        "enableVA": {
+            "value": false
+        },
+        "useVAManagedIdentity": {
+            "value": false
+        },
+        "serverTags": {
+            "value": {}
+        }
+    }
+}

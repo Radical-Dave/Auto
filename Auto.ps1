@@ -4,7 +4,7 @@
 #####################################################
 <#PSScriptInfo
 
-.VERSION 0.19
+.VERSION 0.20
 
 .GUID 602bc07e-a621-4738-8c27-0edf4a4cea8e
 
@@ -29,7 +29,7 @@
 .EXTERNALSCRIPTDEPENDENCIES
 
 .RELEASENOTES
-
+- see README.md
 
 #>
 
@@ -60,14 +60,16 @@ https://github.com/Radical-Dave/Auto
 [CmdletBinding(SupportsShouldProcess=$true)]
 Param(
 	[Parameter(Mandatory = $false, Position=0)]
-	[string] $action = "help",
+	[string] $action = 'help',
 	[Parameter(Mandatory = $false, Position=1)]
-	[string] $data = "",
+	[string] $data = '',
 	[Parameter(Mandatory = $false, Position=2)]
-	[string] $path = "",
+	[string] $path = '',
+	[string] $adApp = 'DevOps',
 	[switch] $Force = $false
 )
 begin {
+	$Global:ErrorActionPreference = 'Stop'
 	$PSScriptName = ($MyInvocation.MyCommand.Name.Replace(".ps1",""))
 	$PSScriptVersion = (Test-ScriptFileInfo -Path $MyInvocation.MyCommand.Path | Select-Object -ExpandProperty Version)
 	$PSCallingScript = if ($MyInvocation.PSCommandPath) { $MyInvocation.PSCommandPath | Split-Path -Parent } else { $null }
@@ -96,15 +98,15 @@ begin {
 	if ($path) {
 		try {
 			#$tasks = Get-Content .\auto.json | Out-String | Invoke-Expression
-			$config = (Get-Content $path -Raw) | ConvertFrom-Json
+			$configFile = (Get-Content $path -Raw) | ConvertFrom-Json
 			#Write-Host "config:$($config)"
 		} catch {
 			throw $_
 		}
-		Write-Verbose "logs:$($config.logs)"
+		Write-Verbose "logs:$($configFile.logs)"
 		try {
 			#Write-Verbose "checking tasks"
-			$tasksNode = $config.psobject.properties["tasks"].value
+			$tasksNode = $configFile.psobject.properties["tasks"].value
 			#Write-Verbose "checking props"
 			#Write-Host "tasksNode:$($tasksNode)"
 			$tasks = $tasksNode.PSObject.Properties
@@ -125,16 +127,16 @@ process {
 			#	$config.tasks | Add-Member -MemberType NoteProperty -Name "$($ds[0])" -Value "$($ds[1])" -PassThru -Force
 			#}
 		#} else {
-			$config.tasks | Add-Member -MemberType NoteProperty -Name "$($ds[0])" -Value "$($ds[1])" -PassThru -Force
+			$configFile.tasks | Add-Member -MemberType NoteProperty -Name "$($ds[0])" -Value "$($ds[1])" -PassThru -Force
 		#}
-		$config | ConvertTo-Json | Out-File $path
+		$configFile | ConvertTo-Json | Out-File $path
 	} elseif ($action -eq 'del' -or $action -eq 'delete' -and $data) {
-		if (!$config -or !$config.tasks) {
+		if (!$configFile -or !$configFile.tasks) {
 			throw 'ERROR no config or config.tasks?'
 		}
 		Write-Host "delete task:$data"
-		$config.tasks.PSObject.Properties.Remove("$data")
-		$config | ConvertTo-Json | Out-File $path
+		$configFile.tasks.PSObject.Properties.Remove("$data")
+		$configFile | ConvertTo-Json | Out-File $path
 	} else {
 		$task = @()
 		Write-Verbose "action:$action"
@@ -181,14 +183,74 @@ process {
 			}
 			Write-Host "RESULTS:$results"
 		} else {
-			if ($action -ne 'help' -and $action -ne 'az') {
+			#if ($action -ne 'help' -and $action -ne 'az' -and $action -ne 'tf') {
+			if (@('help','az','tf','tfd','sql') -notcontains $action) {
 				Write-Host "Task not found in $PSScriptName.json: $action, to add use: -addTask 'AutoScript'" -ForegroundColor White
 			}
-			if ($action -eq 'az' -or $action -eq 'tf') {
+			if ($action -eq 'sql') {
+				if(!$data) {$data = 'SELECT @@version'} #* FROM SYS.DATABASES #SYS_TABLES
+
+				if ($path -notlike ';') {
+					#use config
+					$path = "Data Source=(local);Initial Catalog=.;Integrated Security=SSPI;"
+				}
+
+				Write-Host "RUN:$data"
+				Write-Host "AGAINST:$path"
+				
+				Write-Host "path:$path"
+				try {
+					$connection = New-Object system.data.sqlclient.sqlconnection		
+					Write-Verbose "[BEGIN  ] Creating the SQL Command object"
+					$cmd = New-Object system.Data.SqlClient.SqlCommand
+					$connection.connectionstring = $path
+					$connection.open()
+
+					#join the connection to the command object
+					$cmd.connection = $connection
+					$cmd.CommandText = $data
+					
+					Write-Verbose "[PROCESS] Invoking $data"
+					if ($PSCmdlet.ShouldProcess($data)) {
+						
+						#determine what method to invoke based on the query
+						Switch -regex ($data) {
+							"^Select (\w+|\*)|(@@\w+ AS)" {							
+								$reader = $cmd.executereader()
+								$out=@()
+								#convert datarows to a custom object
+								while ($reader.read()) {									
+									$h = [ordered]@{}
+									for ($i=0;$i -lt $reader.FieldCount;$i++) {
+										$col = $reader.getname($i)											
+										$h.add($col,$reader.getvalue($i))
+									} #for
+									$out += new-object -TypeName psobject -Property $h 
+								} #while
+
+								$out
+								$reader.close()
+								Break
+							}
+							"@@" { 
+								$cmd.ExecuteScalar()
+								Break
+							}
+							Default {
+								$cmd.ExecuteNonQuery() | Out-Null
+							}
+						}
+					}
+				} 
+				catch {
+					throw "ERROR $PSScriptName sql $data - $_" #-InformationVariable results
+				}
+			} elseif (@('az','tf','tfd') -contains $action) {
 				Write-Host "RUN:$path"
 
 				$envPrefix = ''
-				if ($action -eq 'tf') { $envPrefix = 'TF_VAR_'}
+				#if ($action -eq 'tf') { $envPrefix = 'TF_VAR_'}
+				if (@('tf','tfd') -contains $action) { $envPrefix = 'TF_VAR_'}
 				
 				#todo: finish working with Nick to use set-env (otherwise use set-envs)
 				@((Split-Path $profile -Parent),$PSScriptRoot,("$currLocation" -ne "$PSScriptRoot" ? $currLocation : ''),$data).foreach({
@@ -207,6 +269,16 @@ process {
 												$sp = $_.Split('=')
 												#Write-Host "Set-Env $($sp[0])=$($sp[1])"
 												[System.Environment]::SetEnvironmentVariable("$envPrefix$sp[0]", $sp[1])
+												if (@('envName','location','prefix') -contains $sp[0]) { 
+													[System.Environment]::SetEnvironmentVariable("$sp[0]", $sp[1])
+													#$env[$sp[0]] = $sp[1] #Write-Error?
+													switch ($sp[0]) {
+														'envName' {$envName = $sp[1]}
+														'location' {$location = $sp[1]}
+														'prefix' {$prefix = $sp[1]}
+													}
+													Write-Host "Set-Env $($sp[0])=$($sp[1])"
+												}
 											}
 										}
 									}
@@ -226,7 +298,7 @@ process {
 
 				if (!$prefix) { $prefix = $env:prefix }
 				if (!$prefix) { $prefix = $env:RELEASE_DEFINITIONNAME }
-				if (!$prefix) { $prefix = 'az' }
+				if (!$prefix) { $prefix = $action } #todo: should prob be plan/template/task?
 				Write-Host "prefix:$($prefix)"
 
 				if (!$envName) { $envName = $env:envName }
@@ -238,24 +310,38 @@ process {
 				if (!$location) {$location = 'eastus'}
 				Write-Host "location:$($location)"
 
-				if (!$armconfig) { $armconfig = 'default'}
+				if (!$template) { $template = 'default'}
 
-				$myResourceGroupName="$prefix-$envName"
-				Write-Host "deploying:$($myResourceGroupName)"
+				$resourceGroupName="$prefix-$envName"
+				Write-Host "deploying:$($resourceGroupName)"
 
-				#az group create --name $myResourceGroupName --location $location
+				#az group create --name $resourceGroupName --location $location
 				
 				Write-Host "data:$($data)"
+				Write-Verbose "checking:$data"
+				#Write-Verbose "checking:$data/env/$prefix/$prefix-$envName-$template-$action"
+				#if ($data -and (Test-Path "$data/$prefix-$envName-$template-$action")) {
+				#	$base = Split-Path $data -Parent
+				#	#$base = $data
+				#	Write-Host "base1:$($base)"
+				#} else
 				if ($data -and (Test-Path "$data")) {
-					$base = Split-Path $data -Parent
-					#$base = $data					
-					Write-Host "base:$($base)"
+					$parent = Get-Item(Split-Path (Get-Item $data) -Parent)
+					if ($parent.Name -eq 'tasks') {
+						$base = Split-Path (Get-Item $parent) -Parent
+						Write-Host "parent.base:$($base)"
+					} else {
+						Write-Host "parent.base:$($parent.Name)"
+					}
+				} elseif (Test-Path "$data\tf\default\$task") {
+					Write-Host "task.base:$($base)"
+					$base = $data
 				} else {
 					$base = "$(Get-Location)\data"
-					Write-Host "base:$($base)"
+					Write-Host "testing.base:$($base)"
 					if (!(Test-Path $base)) {
 						$base = "$PSScriptRoot\data"
-						Write-Host "base:$($base)"
+						Write-Host "final.base:$($base)"
 					}
 				}
 				if (!(Test-Path $base)) {
@@ -263,30 +349,48 @@ process {
 				}
 				Write-Host "base:$base"
 
+				$taskname = "tasks"
 				$taskpath = $path
-				if (!$taskpath) {
-				
+				if (!$taskpath) {				
 					#todo:test-paths, az is always base, but checking for customs
-					$taskpath = "$base\$prefix-$envName"
+					#$taskpath = "$base\tasks\$prefix-$envName-$template-$action"
+					$providerbase = "$base\providers\$action"
+					Write-Host "providerbase:$providerbase"
+					$taskpath = "$providerbase\tasks\$prefix-$envName-$template-$action"
 					if (!(Test-Path "$taskpath\tasks.json")) {
-						$taskpath ="$base\$prefix"
+						$taskpath ="$providerbase\tasks\$prefix-$envName-$template"
 					}
 					if (!(Test-Path "$taskpath\tasks.json")) {
-						$taskpath ="$base\$prefix"
+						$taskpath ="$providerbase\tasks\$prefix-$envName"
 					}
 					if (!(Test-Path "$taskpath\tasks.json")) {
-						$taskpath ="$base\az"
+						$taskpath ="$providerbase\tasks\$prefix"
+					}
+					if (!(Test-Path "$taskpath\tasks.json")) {
+						$taskpath ="$providerbase\tasks\$prefix"
+					}
+					if (!(Test-Path "$taskpath\tasks.json")) {
+						$taskpath ="$providerbase\tasks\$action"
 					} 
 					if (!(Test-Path "$taskpath\tasks.json")) {
-						throw "taskpath not found: $taskpath or $base"
+						$taskpath ="$providerbase\tasks"
 					}
 					Write-Host "taskpath:$taskpath"
+					if (!(Test-Path $taskpath)) {
+						throw "taskpath not found: $taskpath or $providerbase"
+					}
+					if (!($taskpath.EndsWith("$taskname.json"))) {
+						$taskname = $data
+					}
 				}
+				Write-Verbose "taskpath:$taskpath"
 
-
-				Write-Host "Run tasks:$taskpath\tasks.json"
-				$tasks = Get-Content "$taskpath\tasks.json" | ConvertFrom-Json #$steps = @("nsg","vnet","app","api","falcon-app","falcon-api","db-server","db")
+				# ServicePrincipal - moved below?
+				
+				#Write-Host "Run tasks:$taskpath\$taskname.json"
+				#$tasks = Get-Content "$taskpath\$taskname.json" | ConvertFrom-Json #$steps = @("nsg","vnet","app","api","falcon-app","falcon-api","db-server","db")
 				#Write-Host "tasks:$($tasks.Length)"
+				$tasks = Get-Content "$taskpath\$taskname.json" | ConvertFrom-Json #$steps = @("nsg","vnet","app","api","falcon-app","falcon-api","db-server","db")
 				Write-Host "tasks:$($tasks.tasks -join ',')"
 
 				#if (!(Test-Path "$base\templates")) {
@@ -298,58 +402,250 @@ process {
 				#}
 				#Write-Host "base:$base"
 				
-				$armconfigpath = $taskpath
-				if(!$armconfigpath) {$armconfigpath = $base}
-				#todo:test-paths, az is always base, but checking for customs
-				if (Test-Path "$armconfigpath\$armconfig") {
-					#$armconfigpath = "$base"
-				} elseif (Test-Path "$base\$prefix-$envName\$armconfig") {
-					$armconfigpath = "$base\$prefix-$envName"
-				} elseif (Test-Path "$base\$prefix\$armconfig") {
-					$armconfigpath ="$base\$prefix"
-				} else { $armconfigpath = "$base\az"}
+				$varspath = ''
+				if(!$varspath) {
+					Write-Host "Checking:$base\providers\$action\vars\$template"
+					if (Test-Path "$base\providers\$action\vars\$template") {
+						$varspath = "$base\providers\$action\vars\$template"
+					} else { $varspath = "$base\providers\tf"}
 				
-				if (!(Test-Path "$armconfigpath\$armconfig")) {
-					throw "armconfigpath not found: $armconfigpath or $base"
+					if (!(Test-Path "$varspath")) { #\$template")) {
+						throw "varspath not found: $varspath or $base"
+					}
 				}
-				Write-Host "armconfigpath:$armconfigpath"
-
+				Write-Host "varspath:$varspath"
+				#Write-Host "Expand-Token start"
 				#if (-not (Get-Command -Name 'Install-Scripts' -ErrorAction SilentlyContinue)) {Install-Script -Name Install-Scripts -Confirm:$False -Force}
 				#Install-Scripts @('Set-Tokens') #-Verbose
-				if (-not (Get-Command -Name 'Set-Tokens' -ErrorAction SilentlyContinue)) {Install-Script -Name Set-Tokens -Confirm:$False -Force}
-				#Write-Host "Set-Tokens:$base\az\$armconfig $base\$prefix\$myResourceGroupName-$armconfig"
-				if ($VerbosePreference -eq [System.Management.Automation.ActionPreference]::SilentlyContinue) {
-					Set-Tokens "$armconfigpath\$armconfig" "$base\$prefix\$myResourceGroupName-$armconfig"
-				} else {
-					#Write-Host "Verbose"
-					Set-Tokens "$armconfigpath\$armconfig" "$base\$prefix\$myResourceGroupName-$armconfig" -Verbose
+				
+				if (-not (Get-Command -Name 'Expand-Token' -ErrorAction SilentlyContinue)) {Install-Script -Name 'Expand-Token' -Confirm:$False -Force}
+
+				if ($action -eq 'az') {					
+					Write-Host "Calling Expand-Token:$varspath $base\env\$prefix\$resourceGroupName-$template-$action"
+					if ($VerbosePreference -eq [System.Management.Automation.ActionPreference]::SilentlyContinue) {
+						Expand-Token "$varspath" "$base\env\$prefix\$resourceGroupName-$template-$action" -Verbose
+					} else {
+						#Write-Host "Verbose"
+						Expand-Token "$varspath" "$base\env\$prefix\$resourceGroupName-$template-$action" -Verbose
+					}
+					Write-Host "Expand-Token done:$base\env\$prefix\$resourceGroupName-$template-$action"
 				}
+				
 
 				#if (!(Get-Module -Name Az)) { Install-Module -Name Az -AllowClobber -Confirm:$False -Force }
 
 				if ($tasks.tasks.Length -gt 0) {
-					$rsgExists = az group exists -n $myResourceGroupName
-					if ($rsgExists -eq 'true') {
+					cmd /c "az account show" '2>&1' | Tee-Object -Variable jsonResults
+					#Write-Host "jsonResults:$jsonResults"
+					#if ($null -ne ($jsonResults | Where-Object { $_ -match 'expired'})) {
+					#if ($jsonResults -like '*error*' -or $jsonResults -clike '*expired*') {
+					if ($jsonResults -like '*error*') {
+						Write-Host "Need to sign in"
+						#Write-Host "NOW WE CAN ATTACK! $PSScriptName ERROR:$jsonResults"
+
+						#$sp = New-AzADServicePrincipal -DisplayName ServicePrincipalName
+						#$sp.PasswordCredentials.SecretText
+						#$pscredential = Get-Credential -UserName $sp.AppId
+
+						$devOpsU = [Environment]::GetEnvironmentVariable("$($adApp)_user")
+						Write-Host "devOpsU:$devOpsU"
+						$devOpsP = [Environment]::GetEnvironmentVariable("$($adApp)_pwd")
+						Write-Host "devOpsP:$devOpsP"
+						if ($devOpsU -and $devOpsP) { 
+							az login -u $devOpsU -p $devOpsP 
+						} else {
+							throw "$PSScriptName ERROR - unable to login: $jsonResults"
+						}
+					}
+					cmd /c "az group exists -n $resourceGroupName" '2>&1' | Tee-Object -Variable jsonResults
+					Write-Host "****"
+					Write-Host "jsonResults:$jsonResults"
+					Write-Host "****"
+					#if ($null -ne ($jsonResults | Where-Object { $_ -match 'error'})) {
+						if ($jsonResults -like '*error*') {	
+							Write-Host "****"								
+						#if ($null -ne ($jsonResults | Where-Object { $_ -match 'expired'})){
+							if ($jsonResults -like '*expired*') {
+								Write-Host "****"
+							$devOpsU = [Environment]::GetEnvironmentVariable("$($adApp)_user")
+							Write-Host "devOpsU:$devOpsU"
+							$devOpsP = [Environment]::GetEnvironmentVariable("$($adApp)_pwd")
+							Write-Host "devOpsP:$devOpsP"
+							if ($devOpsU -and $devOpsP) {
+								az login -u $devOpsU -p $devOpsP
+							} else {
+								throw "$PSScriptName ERROR - unable to login: $jsonResults"
+							}
+						}
+						throw "$PSScriptName ERROR checking for ${resourceGroupName}: $jsonResults"
+					}
+					Write-Host "rgExists:$rgExists"
+					if ((@('az','azd') -contains $action) -and $rgExists -eq 'true' -and $clobber ) {
 						#if ($Force) { #$AllowClobber) {
-							#az group delete --location $location -n $myResourceGroupName
-							Write-Host "Deleting:$myResourceGroupName"
-							az group delete -n $myResourceGroupName --yes
-							#Remove-AzResourceGroup -Name $myResourceGroupName -Force
-							$rsgExists = $False
-							Write-Host "Deleting:$myResourceGroupName-end"
+							#az group delete --location $location -n $resourceGroupName
+							Write-Host "Deleting:$resourceGroupName - because it already exists!?!"
+							az group delete -n $resourceGroupName --yes
+							#Remove-AzResourceGroup -Name $resourceGroupName -Force
+							$rgExists = $False
+							Write-Host "Deleting:$resourceGroupName-end"
+							if ($action -eq 'az') {return}
 						#} else {
-						#	throw "Resource Group:$myResourceGroupName already exists - must use -Force to overwrite, todo: should be -AllowClobber"
+						#	throw "Resource Group:$resourceGroupName already exists - must use -Force to overwrite, todo: should be -AllowClobber"
 						#}
 					}
-					if ($rsgExists -ne 'true') {
-						#Write-Host "Creating:$myResourceGroupName"
-						az group create --name $myResourceGroupName --location $location
-						#Write-Host "Creating:$myResourceGroupName-end"
+					if ($rgExists -ne 'true' -and $action -eq 'az') {
+						#Write-Host "Creating:$resourceGroupName"
+						az group create --name $resourceGroupName --location $location
+						#Write-Host "Creating:$resourceGroupName-end"
+					}
+					if ($action -ne 'az') {
+						#$tfContainerName = "base-terraform" #"$resourceGroupName-terraform"
+						$tfContainerName = "tfstate"
+						$tfstorageAccountName = "imaginebasesa" #$tfContainerName.Replace("-","") + 'sa'
+						$brgName = "base" #"$tfContainerName-rg"
+						$tfKeyVaultName = "imaginebase-kv" #"$tfContainerName-kv"
+						$tfKeyVaultSecret = "$resourceGroupName-terraform.tfstate"						
+						Write-Host "tfstorageAccountName:$tfstorageAccountName"
+						#$brgExists = $False
+						#cmd /c "az group exists -n $brgName" '2>&1' | Tee-Object -Variable jsonResults
+						$brgExists = "${$(az group exists -n $brgName)}" -eq "true"
+						#$brgExists = $(az group exists -n $brgName) -eq "true"
+						# if ($null -ne ($jsonResults | Where-Object { $_ -match 'error'})) {
+						# 	#throw "$PSScriptName ERROR checking for ${brgName}: $jsonResults"
+						# 	Write-Host "ResourceGroup not found - creating: $brgName"
+						# } else {
+						# 	$brgExists = $True
+						# }
+
+						#core-azure-devops
+						#
+						#az group create --name core-azure-devops --location centralus
+						#az deployment group create --name "ImaginePeregrine" --resource-group "core-azure-devops" --template-file "data\providers\az\templates\azdo-org.json" --parameters "data\providers\az\default\azdo-org-paramters.json"
+
+
+						Write-Host "brgExists:$brgExists"
+						if (!$brgExists) {
+							az group create --name $brgName --location $location
+							az storage account create --resource-group $brgName --name $tfstorageAccountName --sku Standard_LRS --encryption-services blob
+							$tfAccountKey = $(az storage account keys list --resource-group $brgName --account-name $tfstorageAccountName --query [0].value -o tsv)
+							if ($null -eq $tfAccountKey) {
+								throw "$PSScriptName ERROR checking for sp ${tfAccountKey}"
+							}
+							Write-Host "${tfstorageAccountName}:$tfAccountKey"
+						}
+
+						$kvExists = $False
+						cmd /c "az keyvault list" '2>&1' | Tee-Object -Variable jsonResults #throws error if you pass keyvalue name!
+						if ($null -ne ($jsonResults | Where-Object { $_ -match 'error'}) -or ($null -eq ($jsonResults | Where-Object { $_ -match $tfKeyVaultName}))) {
+							#throw "$PSScriptName ERROR checking for ${tfKeyVaultName}: $jsonResults"
+							Write-Host "KeyVault not found - creating: $tfKeyVaultName"
+						} else {
+							$kvExists = $True
+						}
+						if (!$kvExists) {
+						  az keyvault create --name $tfKeyVaultName --resource-group $brgName --location $location
+						  az keyvault secret set --name $tfKeyVaultSecret --vault-name $tfKeyVaultName --value $tfAccountKey
+						}
+						az storage container create --name $tfContainerName --account-name $tfstorageAccountName --account-key $tfAccountKey
+
+						#$var = (Get-Content .\$file -Raw | ConvertFrom-StringData)
+						#$template -f $var.var1, $var.var2, $var.var3
+
+						$subscriptionId = ''
+						$spName = 'azdevops'
+						$spId = ''
+						$spKey = ''
+						$uservarpath = ''
+						$adApp = ''
+						if (Test-Path -Path ".env.user") {$uservarpath = ".env.user"}
+						if (!$uservarpath -and $varspath) {$uservarpath = $varspath;}
+						#Write-Host "uservarpath:$uservarpath"
+						if ($uservarpath) {
+							$tfvars = Get-Content -Raw -Path $uservarpath | ConvertFrom-StringData
+							if($tfvars.ad_app -and $tfvars.ad_app -ne $adApp) { $adApp = $tfvars.ad_app }
+							if($tfvars.client_name -and $tfvars.client_name -ne $spName) { $spName = $tfvars.client_name }
+							if($tfvars.subscription_id -and $tfvars.subscription_id -ne $subscriptionId) { $subscriptionId = $tfvars.subscription_id }
+						    if($tfvars.client_id -and $tfvars.client_id -ne $spId) {$spId = $tfvars.client_id }
+							if($tfvars.client_secret -and $tfvars.client_secret -ne $spKey) {$spKey = $tfvars.client_secret }
+						}
+						if ($null -eq $subscriptionId) {
+							$azinfo = $(az account show)
+							if ($azinfo) { $subscriptionId = $azinfo.id;}
+						}
+						if ($null -eq $subscriptionId) {
+							throw "$PSScriptName ERROR no subscriptionId"
+						}
+						#Write-Host "spId:$($spId)"
+						#Write-Host "spKey:$($spKey)"
+						if (!$spId -or !$spKey) {
+							$spKv = $(az keyvault secret show --name $spName --vault-name $tfKeyVaultName) | ConvertFrom-Json
+							if ($spKv) {
+								$spId = $spKv.id;
+								$spKey = $spKv.value;
+								#Write-Host 'Retrieved from keyvault!'
+							}
+						}
+						
+						$appId = ''
+						if ($adApp -ne '') {
+							$appId=$(az ad app list --display-name $adApp --query [].appId -o tsv)
+							Write-Host "appId:$($appId)"
+							#$app = $(az ad app list --display-name $adApp) | ConvertFrom-Json
+							#if ($app -eq '[]') { $app = ''}
+							if (!$appId) {
+								Write-Host "Creating adApp:$adApp"
+								az ad app create --display-name $adApp
+								$app = $(az ad app list --display-name $adApp)
+								$appId = $app.id
+							} else { 
+								#Write-Host "App found:$adApp-$($appId)"
+								Write-Host "App found:$($app)"
+							}
+							#Write-Host "app.id: $($appId)"
+							$spId = $(az ad sp list --display-name $adApp --query "[].appId" -o tsv)
+							#Write-Host "spId: $spId"
+						}
+
+						if ($spId) {							
+							#if ($spId -ne $null -and $spKey -eq $null) { $spKey = $(az storage account keys list --resource-group $brgName --account-name $tfstorageAccountName --query [0].value -o tsv)}
+							#$spId = client_id
+							$spIdExists = $(az ad sp show --id $spId --output tsv | Where-Object { $_ -match '$spId'})
+							#Write-Host "spIdExists:$spIdExists"
+							if(!$spIdExists) {
+								$results = $(az ad sp create-for-rbac --name $spName --role Contributor --scope "/subscriptions/$subscriptionId") | ConvertFrom-Json
+								#Write-Host "results: $results"
+								$spKey = $results.password
+								#Write-Host "storing: $spKey"
+								if ($spKey) {
+									#Write-Host 'in keyvault'
+									az keyvault secret set --name $spName --vault-name $tfKeyVaultName --value $spKey
+								}						
+							}
+						}
+
+						Write-Host "spId: $spId"
+						Write-Host "spKey: $spKey"
+
+						if ($data -eq 'setup') {
+
+							
+
+							Write-Host 'setup complete.'
+							return;
+						}
+
+						$tfAccountKey = $(az storage account keys list --resource-group $brgName --account-name $tfstorageAccountName --query [0].value -o tsv)
+						if ($null -eq $tfAccountKey) {
+							throw "$PSScriptName ERROR checking for sp ${tfAccountKey}"
+						}
+						Write-Host "${tfstorageAccountName}:$tfAccountKey"
 					}
 				}
-				$templatepath = "$path\templates"
+				#$templatepath = Join-Path (Split-Path $varspath -Parent) "templates"
+				$templatepath = "$base/providers/$action/templates"
+				Write-Host "Checking:$templatepath"
 				if (!(Test-Path $templatepath)) {
-					$templatepath = "$base\az\templates"
+					$templatepath = "$base\$action\templates"
 				}
 				if (!(Test-Path $templatepath)) {
 					throw "templatepath not found: $templatepath or $path\templates"
@@ -360,31 +656,83 @@ process {
 					$task = $tasks.tasks[$i]
 					$template = $task
 					
-					#if ($task -eq "api") { $template = "app"}
-					if (!(Test-Path "$templatepath\$template-template.json")) {
-						if ($task -match '-app$' -or $task -match '-api$'){ $template = "app"}
+					if ($action -eq 'az') {
+						#if ($task -eq "api") { $template = "app"}
 						if (!(Test-Path "$templatepath\$template-template.json")) {
-							Write-Error "File not found:$templatepath\$template-template.json"
+							if ($task -match '-app$' -or $task -match '-api$'){ $template = "app"}
+							if (!(Test-Path "$templatepath\$template-template.json")) {
+								Write-Error "File not found:$templatepath\$template-template.json"
+							}
+						}
+						#Write-Host "test-path:$($base)/templates/$($config)/$($task)-parameters.json"
+						if (!(Test-Path "$base\env\$prefix\$resourceGroupName-$template\$task-parameters.json")) {
+							Write-Error "File not found:$base\env\$prefix\$resourceGroupName-$template\$task-parameters.json"
 						}
 					}
-					#Write-Host "test-path:$($base)/templates/$($armconfig)/$($task)-parameters.json"
-					if (!(Test-Path "$base\$prefix\$myResourceGroupName-$armconfig\$task-parameters.json")) {
-						Write-Error "File not found:$base\$prefix\$myResourceGroupName-$armconfig\$task-parameters.json"
-					}
-
-					#Write-Host "#az deployment group create --name $($prefix)-$($envName)-$($task) --resource-group $myResourceGroupName --template-file templates/$($template)-template.json --parameters $($config)/$($task)-parameters.json"
 
 					#azdoEnvStatus "inProgress"
-					Write-Host "Creating:$prefix-$envName-$task"
-					Write-Host "az deployment group create --name $prefix-$envName-$task --resource-group $myResourceGroupName --template-file $templatepath\$template-template.json --parameters $base\$prefix\$myResourceGroupName-$armconfig\$task-parameters.json"
+					Write-Host "Running:$prefix-$envName-$task"
+											
 					try {
-						az deployment group create --name "$prefix-$envName-$task" --resource-group $myResourceGroupName --template-file "$templatepath\$template-template.json" --parameters "$base\$prefix\$myResourceGroupName-$armconfig\$task-parameters.json"
+						if ($action -eq 'az') {
+							Write-Host "az deployment group create --name $prefix-$envName-$task --resource-group $resourceGroupName --template-file $templatepath\$template-template.json --parameters $base\env\$prefix\$resourceGroupName-$template\$task-parameters.json"
+							az deployment group create --name "$prefix-$envName-$task" --resource-group $resourceGroupName --template-file "$templatepath\$template-template.json" --parameters "$base\env\$prefix\$resourceGroupName-$template\$task-parameters.json"
+						} elseif (@('tf','tfd') -contains $action) {
+							$workingDirectory = "$base\providers\$action\templates\$template" #"$templatepath\plans\$template"
+							Write-Host "Set working directory:$workingDirectory"
+							$origLocation = Get-Location
+							if ($origLocation -ne $workingDirectory) { 
+								Set-Location $workingDirectory
+								Write-Host "Executing terraform init:$workingDirectory"
+								terraform init
+								#terraform init -backend-config="storage_account_name=<YourAzureStorageAccountName>" -backend-config="container_name=tfstate" -backend-config="access_key=<YourStorageAccountAccessKey>" -backend-config="key=codelab.microsoft.tfstate"
+							}
+
+							Write-Host "Checking for vars"
+							#$varFile = "$base\providers\$prefix\vars\$resourceGroupName-$template-$action"
+							#$varFile = "$base\env\$prefix\vars\$template"
+							$varFile = "$base\providers\$action\vars\$template\$template.tfvars"
+							$varFileTokens = "$base\env\$prefix\$resourceGroupName-$template-$action"
+							#$varFile = "$base\env\$prefix\$resourceGroupName-$template-$action"
+							Write-Host "Generating terraform plan $varFile"
+							if (Test-Path $varFile) {
+								Write-Host "Using:$varFile"
+								if (!(Test-Path "$base\env\$prefix\$resourceGroupName-$template-$action")) { New-Item "$base\$prefix\$resourceGroupName-$template-$action" -ItemType Directory | Out-Null}
+								$varFileTokens = "$base\env\$prefix\$resourceGroupName-$template-$action\$template.tfvars"
+								Expand-Token "$varFile" "$varFileTokens"
+								#Set-Location $workingDirectory
+								Write-Host "CurrentLocation:$(Get-Location)"
+								Write-Host "varFileTokens:$varFileTokens"
+								#terraform apply -var-file="$varFileTokens" -out="$prefix-$envName-$task.tfplan" -input=false
+								if ($action -eq 'tf') {
+									terraform plan -var-file="$varFileTokens" -out="$prefix-$envName-$task.tfplan" -input=false
+								} else {
+									terraform plan -var-file="$varFileTokens" -destroy -out="$prefix-$envName-$task.tfplan" -input=false
+								}
+								#terraform apply "$prefix-$envName-$task.tfplan" -var-file="$varFileTokens" 
+							} else {
+								if ($action -eq 'tf') {
+									terraform plan -out="$prefix-$envName-$task.tfplan"
+								} else {
+									terraform plan -destroy -out="$prefix-$envName-$task.tfplan"
+								}
+
+							}
+							Write-Host "Applying terraform plan:$prefix-$envName-$task.tfplan"
+							if ($action -eq 'tf') {
+								terraform apply "$prefix-$envName-$task.tfplan"
+							} else {
+								terraform -destroy apply "$prefix-$envName-$task.tfplan"
+							}
+							if ((Get-Location) -ne $origLocation) { Set-Location $origLocation}
+						}
 						Write-Host "Created:$prefix-$envName-$task"
 					}
 					catch 
 					{
-						Write-Error "ERROR creating:$prefix-$envName-$task" -InformationVariable results
+						Write-Error "ERROR creating:$prefix-$envName-$($task):$_" -InformationVariable results
 					}
+					
 					#Write-Host "Creating:$prefix-$envName-$task-end"
 					#azdoEnvStatus "succeeded"
 				}

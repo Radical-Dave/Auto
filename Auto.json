@@ -5,20 +5,25 @@
     "add": "name=[AutoScript]",
     "del": "name - delete task",
     "cmd": "cmd $(data)",
+    "connect": "ssh -p 9222 radicaldave@radical.local",
     "date": "get-date",
     "echo": "echo",
     "build": "*\\build",
     "install": "choco install $(data) -y",
     "install choco": "Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))",
     "report": "dir d:\\*.$(data) -recurse > $(data).txt",
+    "tfp": "Set-Location .\\data\\tf\\tasks\\peregrine; Invoke-Terra",
+    "tfa": "Set-Location .\\data\\tf\\tasks\\peregrine; Invoke-Terra",
     "test": "invoke-pester .\\*$(data)*.tests.ps1 -output detailed -Verbose",
     "test-az": "invoke-pester .\\*$(data)*.az*.tests.ps1 -output detailed -Verbose",
+    "test-tf": "invoke-pester .\\*$(data)*.tf*.tests.ps1 -output detailed -Verbose",
     "transfer": "xcopy $(data) /c /d /e /f /h /i /j /k /o /v /x /y",
     "local": "import-module ..\\..\\SharedSitecore\\SitecoreLocal\\src\\SitecoreLocal -force;Install-SitecoreLocal -force -verbose",
     "import": "import-module ..\\..\\SharedSitecore\\SitecoreLocal\\src\\SitecoreLocal -force -verbose;",
     "removedbs": "import-module ..\\..\\SharedSitecore\\SitecoreLocal\\src\\SitecoreLocal;Remove-SitecoreLocalDb -prefix 1020 -force -verbose",
     "local-xc": ".\\scripts\\create\\local\\xc\\install\\install-xc0",
     "paas": ".\\scripts\\create\\paas\\create-paas",
+    "psupdate": "iex \"& { $(irm https://aka.ms/install-powershell.ps1) } -UseMSI\"",
     "testing": "commands that require set-location:",
     "local-xc0": "Set-Location scripts\\create\\local\\xc\\install;. .\\install-xc0",
     "remove-db": ".\\scripts\\create\\local\\remove-db",
@@ -26,6 +31,9 @@
     "install-solr": ".\\scripts\\create\\local\\XP\\install\\Solr\\install-solr",
     "sc-latest2": "import-module ..\\..\\SharedSitecore\\SitecoreLocal\\src\\SitecoreLocal",
     "new-ssl": "import-module ..\\..\\SharedSitecore\\SitecoreLocal\\src\\SitecoreLocal -force ;New-SslCertificate *.dev.localhost -force -verbose",
-    "sc-latest": "Import-Module ..\\..\\SharedSitecore\\SitecoreLocal\\src\\SitecoreLocal -force;Get-SitecoreCompatibility"
+    "sc-latest": "Import-Module ..\\..\\SharedSitecore\\SitecoreLocal\\src\\SitecoreLocal -force;Get-SitecoreCompatibility",
+    "search": "Get-ChildItem $path -recurse | Out-String -stream | Select-String -pattern \"$data\" | group path | select name > \"d:\\$data.report.txt\"",
+    "sync": "\"c:\\Program Files\\Grsync\\bin\\rsync -vrtzp --chmod=+rwx /cygdrive/d rsync@radical.local::data --rsync_password=tnas1FTW!\""
+    //"sync": "\"c:\\Program Files\\Grsync\\bin\\rsync.exe -n -i -r -t -p -o -g -v -u -c -l -H -z /cygdrive/d rsync://rsync@radical.local:873/data --rsync_password=tnas1FTW!\""
   }
 }

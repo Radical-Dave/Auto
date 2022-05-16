@@ -1,0 +1,7 @@
+resource_group_name="smoke-dev"
+prefix="smoke"
+envName="dev"
+nsg_name="smoke-dev-nsg"
+location=""
+nsg_environment="dev"
+nsg_costcenter="smoke"
