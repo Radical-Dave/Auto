@@ -1,4 +1,4 @@
-name: Auto
+name: nightly
 on:
     workflow_run:
       workflows: ["PSScriptAnalyzer"]
