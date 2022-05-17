@@ -52,6 +52,7 @@ Auto az smoke-test
 - 0.19 clean up
 - 0.20 clean up
 - 0.21 tf clean up
+- 0.22 ./terraform.exe
 
 ## Copyright
 David Walker, [Radical Dave](https://github.com/radical-dave), [Sitecore Dave](https://github.com/sitecoredave)

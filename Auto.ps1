@@ -4,7 +4,7 @@
 #####################################################
 <#PSScriptInfo
 
-.VERSION 0.21
+.VERSION 0.22
 
 .GUID 602bc07e-a621-4738-8c27-0edf4a4cea8e
 
@@ -355,6 +355,7 @@ process {
 					$base = $data
 				} else {
 					$base = "$(Get-Location)\data"
+					Get-ChildItem
 					Write-Host "testing.base:$($base)"
 					if (!(Test-Path $base)) {
 						$base = "$PSScriptRoot\data"
@@ -490,7 +491,7 @@ process {
 					Write-Host "jsonResults:$jsonResults"
 					Write-Host "****"
 					#if ($null -ne ($jsonResults | Where-Object { $_ -match 'error'})) {
-						if ($jsonResults -like '*error*') {	
+					if ($jsonResults -like '*error*') {	
 							Write-Host "****"								
 						#if ($null -ne ($jsonResults | Where-Object { $_ -match 'expired'})){
 							if ($jsonResults -like '*expired*') {
