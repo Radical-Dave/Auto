@@ -48,7 +48,8 @@ Auto az smoke-test
 - 0.17 added PSScriptRoot verbose
 - 0.18 try catch around tasks
 - 0.19 clean up
-- 0.20 
+- 0.20 clean up
+- 0.21 tf clean up
 
 ## Copyright
 David Walker, [Radical Dave](https://github.com/radical-dave), [Sitecore Dave](https://github.com/sitecoredave)

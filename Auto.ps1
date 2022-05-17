@@ -4,7 +4,7 @@
 #####################################################
 <#PSScriptInfo
 
-.VERSION 0.20
+.VERSION 0.21
 
 .GUID 602bc07e-a621-4738-8c27-0edf4a4cea8e
 
@@ -78,23 +78,31 @@ begin {
 	
 	$StopWatch = New-Object -TypeName System.Diagnostics.Stopwatch
 	$StopWatch.Start()
+	Write-Verbose "path:$path"
 
-	if (!$path -and $action -ne 'az') {
-		if (Test-Path "$PSScriptRoot/$PSScriptName.json") {
-			$path = "$PSScriptRoot/$PSScriptName.json"
-		} else {
-			$profileParent =Split-Path $profile -Parent
-			if (Test-Path "$profileParent/$($PSScriptName).json") {
-				$path = "$profileParent/$($PSScriptName).json"
+	if (@('az','tf') -contains $action -and $data -ne "") {
+		if (Test-Path "$PSScriptRoot\data\$action\$data\tasks\$data.json") {
+			$path = "$PSScriptRoot\data\$action\tasks.json";
+		} elseif (Test-Path "$PSScriptPath\data\$action\tasks\$data\$data.json") {
+			$path = "$PSScriptPath\data\$action\$data\tasks.json";
+		}
+		$tasks = $path
+	} else {
+		if (!$path -and $action -ne 'az') {
+			if (Test-Path "$PSScriptRoot/$PSScriptName.json") {
+				$path = "$PSScriptRoot/$PSScriptName.json"
+			} else {
+				$profileParent =Split-Path $profile -Parent
+				if (Test-Path "$profileParent/$($PSScriptName).json") {
+					$path = "$profileParent/$($PSScriptName).json"
+				}
 			}
 		}
 	}
-	
 	Write-Verbose "path:$path"
 	#if (!(Test-Path $path)) {
 	#	throw "ERROR invalid path:$($path)"
 	#}
-
 	if ($path) {
 		try {
 			#$tasks = Get-Content .\auto.json | Out-String | Invoke-Expression
@@ -115,6 +123,14 @@ begin {
 			Write-Verbose "NON-Critical? Error parsing task(s): $_"
 		}
 	}
+	
+	if (!$path) {
+		if ((Test-Path "$PSScriptPath\data\$action\$data\tasks.json")) {
+			$path = "$PSScriptPath\data\$action\$data\tasks.json";
+		}
+	}
+
+	Write-Verbose "path:$path"
 }
 process {
 	if ($action -eq 'add' -and $data.IndexOf('=') -gt -1) {
@@ -142,6 +158,7 @@ process {
 		Write-Verbose "action:$action"
 		if ($tasks -and $action -ne 'help') {
 			$taskProperty = $tasks[$action]
+			Write-Verbose "taskProperty:$taskProperty"
 			if ($taskProperty) {
 				$task = $taskProperty.value
 			}
@@ -262,7 +279,7 @@ process {
 								Get-ChildItem –Path $p\*.env* | Foreach-Object {
 									try {
 										$f = $_
-										#Write-Verbose "checking:$($f.FullName)"							
+										Write-Verbose "reading setting from:$($f.FullName)"
 										$content = (Get-Content $f.FullName)
 										$content | ForEach-Object {
 											if (-not ($_ -like '#*') -and  ($_ -like '*=*')) {
@@ -298,7 +315,7 @@ process {
 
 				if (!$prefix) { $prefix = $env:prefix }
 				if (!$prefix) { $prefix = $env:RELEASE_DEFINITIONNAME }
-				if (!$prefix) { $prefix = $action } #todo: should prob be plan/template/task?
+				if (!$prefix) { $prefix = 'smoke' }
 				Write-Host "prefix:$($prefix)"
 
 				if (!$envName) { $envName = $env:envName }
@@ -333,7 +350,7 @@ process {
 					} else {
 						Write-Host "parent.base:$($parent.Name)"
 					}
-				} elseif (Test-Path "$data\tf\default\$task") {
+				} elseif (Test-Path "$data\$action\templates\$task") {
 					Write-Host "task.base:$($base)"
 					$base = $data
 				} else {
@@ -379,8 +396,9 @@ process {
 					if (!(Test-Path $taskpath)) {
 						throw "taskpath not found: $taskpath or $providerbase"
 					}
-					if (!($taskpath.EndsWith("$taskname.json"))) {
+					if ($taskpath.EndsWith(".json")) {
 						$taskname = $data
+						Write-Verbose "taskname:$taskname"
 					}
 				}
 				Write-Verbose "taskpath:$taskpath"
@@ -390,8 +408,14 @@ process {
 				#Write-Host "Run tasks:$taskpath\$taskname.json"
 				#$tasks = Get-Content "$taskpath\$taskname.json" | ConvertFrom-Json #$steps = @("nsg","vnet","app","api","falcon-app","falcon-api","db-server","db")
 				#Write-Host "tasks:$($tasks.Length)"
-				$tasks = Get-Content "$taskpath\$taskname.json" | ConvertFrom-Json #$steps = @("nsg","vnet","app","api","falcon-app","falcon-api","db-server","db")
-				Write-Host "tasks:$($tasks.tasks -join ',')"
+				if (Test-Path "$taskpath\$taskname.json") {
+					try {
+						$tasks = Get-Content "$taskpath\$taskname.json" | ConvertFrom-Json #$steps = @("nsg","vnet","app","api","falcon-app","falcon-api","db-server","db")
+						Write-Host "tasks:$($tasks.tasks -join ',')"
+					} catch {
+						Write-Verbose "FILE DOES NOT EXIST:$taskpath\$taskname.json:$_" -InformationVariable results
+					}
+				}
 
 				#if (!(Test-Path "$base\templates")) {
 				#	if (!(Test-Path "$PSScriptRoot\templates")) {
@@ -434,6 +458,10 @@ process {
 
 				#if (!(Get-Module -Name Az)) { Install-Module -Name Az -AllowClobber -Confirm:$False -Force }
 
+
+				#Write-Host "tasks:$tasks"
+				#if (!$tasks) {$tasks.tasks = 'main'}
+
 				if ($tasks.tasks.Length -gt 0) {
 					cmd /c "az account show" '2>&1' | Tee-Object -Variable jsonResults
 					#Write-Host "jsonResults:$jsonResults"
@@ -456,7 +484,7 @@ process {
 						} else {
 							throw "$PSScriptName ERROR - unable to login: $jsonResults"
 						}
-					}
+					}				
 					cmd /c "az group exists -n $resourceGroupName" '2>&1' | Tee-Object -Variable jsonResults
 					Write-Host "****"
 					Write-Host "jsonResults:$jsonResults"
@@ -498,148 +526,153 @@ process {
 						az group create --name $resourceGroupName --location $location
 						#Write-Host "Creating:$resourceGroupName-end"
 					}
-					if ($action -ne 'az') {
-						#$tfContainerName = "base-terraform" #"$resourceGroupName-terraform"
-						$tfContainerName = "tfstate"
-						$tfstorageAccountName = "imaginebasesa" #$tfContainerName.Replace("-","") + 'sa'
-						$brgName = "base" #"$tfContainerName-rg"
-						$tfKeyVaultName = "imaginebase-kv" #"$tfContainerName-kv"
-						$tfKeyVaultSecret = "$resourceGroupName-terraform.tfstate"						
-						Write-Host "tfstorageAccountName:$tfstorageAccountName"
-						#$brgExists = $False
-						#cmd /c "az group exists -n $brgName" '2>&1' | Tee-Object -Variable jsonResults
-						$brgExists = "${$(az group exists -n $brgName)}" -eq "true"
-						#$brgExists = $(az group exists -n $brgName) -eq "true"
-						# if ($null -ne ($jsonResults | Where-Object { $_ -match 'error'})) {
-						# 	#throw "$PSScriptName ERROR checking for ${brgName}: $jsonResults"
-						# 	Write-Host "ResourceGroup not found - creating: $brgName"
-						# } else {
-						# 	$brgExists = $True
-						# }
+				}
+				if ($action -eq 'tfsetup') {
+					#$tfContainerName = "base-terraform" #"$resourceGroupName-terraform"
+					$tfContainerName = "tfstate"
+					$tfstorageAccountName = "imaginebasesa" #$tfContainerName.Replace("-","") + 'sa'
+					$brgName = "base" #"$tfContainerName-rg"
+					$tfKeyVaultName = "imaginebase-kv" #"$tfContainerName-kv"
+					$tfKeyVaultSecret = "$resourceGroupName-terraform.tfstate"						
+					Write-Host "tfstorageAccountName:$tfstorageAccountName"
 
-						#core-azure-devops
-						#
-						#az group create --name core-azure-devops --location centralus
-						#az deployment group create --name "ImaginePeregrine" --resource-group "core-azure-devops" --template-file "data\providers\az\templates\azdo-org.json" --parameters "data\providers\az\default\azdo-org-paramters.json"
+					#$brgExists = $False
+					#cmd /c "az group exists -n $brgName" '2>&1' | Tee-Object -Variable jsonResults
+					$brgExists = "${$(az group exists -n $brgName)}" -eq "true"
+					#$brgExists = $(az group exists -n $brgName) -eq "true"
+					# if ($null -ne ($jsonResults | Where-Object { $_ -match 'error'})) {
+					# 	#throw "$PSScriptName ERROR checking for ${brgName}: $jsonResults"
+					# 	Write-Host "ResourceGroup not found - creating: $brgName"
+					# } else {
+					# 	$brgExists = $True
+					# }
+
+					#core-azure-devops
+					#
+					#az group create --name core-azure-devops --location centralus
+					#az deployment group create --name "ImaginePeregrine" --resource-group "core-azure-devops" --template-file "data\providers\az\templates\azdo-org.json" --parameters "data\providers\az\default\azdo-org-paramters.json"
 
 
-						Write-Host "brgExists:$brgExists"
-						if (!$brgExists) {
-							az group create --name $brgName --location $location
-							az storage account create --resource-group $brgName --name $tfstorageAccountName --sku Standard_LRS --encryption-services blob
-							$tfAccountKey = $(az storage account keys list --resource-group $brgName --account-name $tfstorageAccountName --query [0].value -o tsv)
-							if ($null -eq $tfAccountKey) {
-								throw "$PSScriptName ERROR checking for sp ${tfAccountKey}"
-							}
-							Write-Host "${tfstorageAccountName}:$tfAccountKey"
-						}
-
-						$kvExists = $False
-						cmd /c "az keyvault list" '2>&1' | Tee-Object -Variable jsonResults #throws error if you pass keyvalue name!
-						if ($null -ne ($jsonResults | Where-Object { $_ -match 'error'}) -or ($null -eq ($jsonResults | Where-Object { $_ -match $tfKeyVaultName}))) {
-							#throw "$PSScriptName ERROR checking for ${tfKeyVaultName}: $jsonResults"
-							Write-Host "KeyVault not found - creating: $tfKeyVaultName"
-						} else {
-							$kvExists = $True
-						}
-						if (!$kvExists) {
-						  az keyvault create --name $tfKeyVaultName --resource-group $brgName --location $location
-						  az keyvault secret set --name $tfKeyVaultSecret --vault-name $tfKeyVaultName --value $tfAccountKey
-						}
-						az storage container create --name $tfContainerName --account-name $tfstorageAccountName --account-key $tfAccountKey
-
-						#$var = (Get-Content .\$file -Raw | ConvertFrom-StringData)
-						#$template -f $var.var1, $var.var2, $var.var3
-
-						$subscriptionId = ''
-						$spName = 'azdevops'
-						$spId = ''
-						$spKey = ''
-						$uservarpath = ''
-						$adApp = ''
-						if (Test-Path -Path ".env.user") {$uservarpath = ".env.user"}
-						if (!$uservarpath -and $varspath) {$uservarpath = $varspath;}
-						#Write-Host "uservarpath:$uservarpath"
-						if ($uservarpath) {
-							$tfvars = Get-Content -Raw -Path $uservarpath | ConvertFrom-StringData
-							if($tfvars.ad_app -and $tfvars.ad_app -ne $adApp) { $adApp = $tfvars.ad_app }
-							if($tfvars.client_name -and $tfvars.client_name -ne $spName) { $spName = $tfvars.client_name }
-							if($tfvars.subscription_id -and $tfvars.subscription_id -ne $subscriptionId) { $subscriptionId = $tfvars.subscription_id }
-						    if($tfvars.client_id -and $tfvars.client_id -ne $spId) {$spId = $tfvars.client_id }
-							if($tfvars.client_secret -and $tfvars.client_secret -ne $spKey) {$spKey = $tfvars.client_secret }
-						}
-						if ($null -eq $subscriptionId) {
-							$azinfo = $(az account show)
-							if ($azinfo) { $subscriptionId = $azinfo.id;}
-						}
-						if ($null -eq $subscriptionId) {
-							throw "$PSScriptName ERROR no subscriptionId"
-						}
-						#Write-Host "spId:$($spId)"
-						#Write-Host "spKey:$($spKey)"
-						if (!$spId -or !$spKey) {
-							$spKv = $(az keyvault secret show --name $spName --vault-name $tfKeyVaultName) | ConvertFrom-Json
-							if ($spKv) {
-								$spId = $spKv.id;
-								$spKey = $spKv.value;
-								#Write-Host 'Retrieved from keyvault!'
-							}
-						}
-						
-						$appId = ''
-						if ($adApp -ne '') {
-							$appId=$(az ad app list --display-name $adApp --query [].appId -o tsv)
-							Write-Host "appId:$($appId)"
-							#$app = $(az ad app list --display-name $adApp) | ConvertFrom-Json
-							#if ($app -eq '[]') { $app = ''}
-							if (!$appId) {
-								Write-Host "Creating adApp:$adApp"
-								az ad app create --display-name $adApp
-								$app = $(az ad app list --display-name $adApp)
-								$appId = $app.id
-							} else { 
-								#Write-Host "App found:$adApp-$($appId)"
-								Write-Host "App found:$($app)"
-							}
-							#Write-Host "app.id: $($appId)"
-							$spId = $(az ad sp list --display-name $adApp --query "[].appId" -o tsv)
-							#Write-Host "spId: $spId"
-						}
-
-						if ($spId) {							
-							#if ($spId -ne $null -and $spKey -eq $null) { $spKey = $(az storage account keys list --resource-group $brgName --account-name $tfstorageAccountName --query [0].value -o tsv)}
-							#$spId = client_id
-							$spIdExists = $(az ad sp show --id $spId --output tsv | Where-Object { $_ -match '$spId'})
-							#Write-Host "spIdExists:$spIdExists"
-							if(!$spIdExists) {
-								$results = $(az ad sp create-for-rbac --name $spName --role Contributor --scope "/subscriptions/$subscriptionId") | ConvertFrom-Json
-								#Write-Host "results: $results"
-								$spKey = $results.password
-								#Write-Host "storing: $spKey"
-								if ($spKey) {
-									#Write-Host 'in keyvault'
-									az keyvault secret set --name $spName --vault-name $tfKeyVaultName --value $spKey
-								}						
-							}
-						}
-
-						Write-Host "spId: $spId"
-						Write-Host "spKey: $spKey"
-
-						if ($data -eq 'setup') {
-
-							
-
-							Write-Host 'setup complete.'
-							return;
-						}
-
+					Write-Host "brgExists:$brgExists"
+					if (!$brgExists) {
+						az group create --name $brgName --location $location
+						az storage account create --resource-group $brgName --name $tfstorageAccountName --sku Standard_LRS --encryption-services blob
 						$tfAccountKey = $(az storage account keys list --resource-group $brgName --account-name $tfstorageAccountName --query [0].value -o tsv)
 						if ($null -eq $tfAccountKey) {
 							throw "$PSScriptName ERROR checking for sp ${tfAccountKey}"
 						}
 						Write-Host "${tfstorageAccountName}:$tfAccountKey"
 					}
+
+					$kvExists = $False
+					cmd /c "az keyvault list" '2>&1' | Tee-Object -Variable jsonResults #throws error if you pass keyvalue name!
+					if ($null -ne ($jsonResults | Where-Object { $_ -match 'error'}) -or ($null -eq ($jsonResults | Where-Object { $_ -match $tfKeyVaultName}))) {
+						#throw "$PSScriptName ERROR checking for ${tfKeyVaultName}: $jsonResults"
+						Write-Host "KeyVault not found - creating: $tfKeyVaultName"
+					} else {
+						$kvExists = $True
+					}
+					if (!$kvExists) {
+						az keyvault create --name $tfKeyVaultName --resource-group $brgName --location $location
+						az keyvault secret set --name $tfKeyVaultSecret --vault-name $tfKeyVaultName --value $tfAccountKey
+					}
+					az storage container create --name $tfContainerName --account-name $tfstorageAccountName --account-key $tfAccountKey
+
+					#$var = (Get-Content .\$file -Raw | ConvertFrom-StringData)
+					#$template -f $var.var1, $var.var2, $var.var3
+
+
+					$subscriptionId = ''
+					$spName = 'azdevops'
+					$spId = ''
+					$spKey = ''
+					$uservarpath = ''
+					$adApp = ''
+					if (Test-Path -Path ".env.user") {$uservarpath = ".env.user"}
+					if (!$uservarpath -and (Test-Path "$varspath\$data.tfvars")) {$uservarpath = "$varspath\$data.tfvars";}
+					if (!$uservarpath -and (Test-Path "$taskpath\.tfvars")) {$uservarpath = "$taskpath\.tfvars";}
+					Write-Host "uservarpath:$uservarpath"
+					if ($uservarpath -and (Test-Path $uservarpath)) {
+						$tfvars = Get-Content -Raw -Path $uservarpath | ConvertFrom-StringData
+						if($tfvars.ad_app -and $tfvars.ad_app -ne $adApp) { $adApp = $tfvars.ad_app }
+						if($tfvars.client_name -and $tfvars.client_name -ne $spName) { $spName = $tfvars.client_name }
+						if($tfvars.subscription_id -and $tfvars.subscription_id -ne $subscriptionId) { $subscriptionId = $tfvars.subscription_id }
+						if($tfvars.client_id -and $tfvars.client_id -ne $spId) {$spId = $tfvars.client_id }
+						if($tfvars.client_secret -and $tfvars.client_secret -ne $spKey) {$spKey = $tfvars.client_secret }
+					}
+					if ($null -eq $subscriptionId) {
+						$azinfo = $(az account show)
+						if ($azinfo) { $subscriptionId = $azinfo.id;}
+					}
+					if ($null -eq $subscriptionId) {
+						throw "$PSScriptName ERROR no subscriptionId"
+					}
+
+					#Write-Host "spId:$($spId)"
+					#Write-Host "spKey:$($spKey)"
+
+					if (!$spId -or !$spKey) {
+						$spKv = $(az keyvault secret show --name $spName --vault-name $tfKeyVaultName) | ConvertFrom-Json
+						if ($spKv) {
+							$spId = $spKv.id;
+							$spKey = $spKv.value;
+							#Write-Host 'Retrieved from keyvault!'
+						}
+					}
+					
+					$appId = ''
+					if ($adApp -ne '') {
+						$appId=$(az ad app list --display-name $adApp --query [].appId -o tsv)
+						Write-Host "appId:$($appId)"
+						#$app = $(az ad app list --display-name $adApp) | ConvertFrom-Json
+						#if ($app -eq '[]') { $app = ''}
+						if (!$appId) {
+							Write-Host "Creating adApp:$adApp"
+							az ad app create --display-name $adApp
+							$app = $(az ad app list --display-name $adApp)
+							$appId = $app.id
+						} else { 
+							#Write-Host "App found:$adApp-$($appId)"
+							Write-Host "App found:$($app)"
+						}
+						#Write-Host "app.id: $($appId)"
+						$spId = $(az ad sp list --display-name $adApp --query "[].appId" -o tsv)
+						#Write-Host "spId: $spId"
+					}
+
+					if ($spId) {							
+						#if ($spId -ne $null -and $spKey -eq $null) { $spKey = $(az storage account keys list --resource-group $brgName --account-name $tfstorageAccountName --query [0].value -o tsv)}
+						#$spId = client_id
+						$spIdExists = $(az ad sp show --id $spId --output tsv | Where-Object { $_ -match '$spId'})
+						#Write-Host "spIdExists:$spIdExists"
+						if(!$spIdExists) {
+							$results = $(az ad sp create-for-rbac --name $spName --role Contributor --scope "/subscriptions/$subscriptionId") | ConvertFrom-Json
+							#Write-Host "results: $results"
+							$spKey = $results.password
+							#Write-Host "storing: $spKey"
+							if ($spKey) {
+								#Write-Host 'in keyvault'
+								az keyvault secret set --name $spName --vault-name $tfKeyVaultName --value $spKey
+							}						
+						}
+					}
+
+					Write-Host "spId: $spId"
+					Write-Host "spKey: $spKey"
+
+					if ($data -eq 'setup') {
+
+						
+
+						Write-Host 'setup complete.'
+						return;
+					}
+
+					$tfAccountKey = $(az storage account keys list --resource-group $brgName --account-name $tfstorageAccountName --query [0].value -o tsv)
+					if ($null -eq $tfAccountKey) {
+						throw "$PSScriptName ERROR checking for sp ${tfAccountKey}"
+					}
+					Write-Host "${tfstorageAccountName}:$tfAccountKey"
 				}
 				#$templatepath = Join-Path (Split-Path $varspath -Parent) "templates"
 				$templatepath = "$base/providers/$action/templates"
@@ -652,6 +685,10 @@ process {
 				}
 				Write-Host "templatepath:$templatepath"
 
+				if ($tasks.tasks.Length -eq 0) {
+					#$tasks.tasks = @("main")
+					$tasks = '{"tasks":["main"]}' | ConvertFrom-Json
+				}
 				for ($i=0; $i -lt $tasks.tasks.Length; $i++) {
 					$task = $tasks.tasks[$i]
 					$template = $task
@@ -678,7 +715,7 @@ process {
 							Write-Host "az deployment group create --name $prefix-$envName-$task --resource-group $resourceGroupName --template-file $templatepath\$template-template.json --parameters $base\env\$prefix\$resourceGroupName-$template\$task-parameters.json"
 							az deployment group create --name "$prefix-$envName-$task" --resource-group $resourceGroupName --template-file "$templatepath\$template-template.json" --parameters "$base\env\$prefix\$resourceGroupName-$template\$task-parameters.json"
 						} elseif (@('tf','tfd') -contains $action) {
-							$workingDirectory = "$base\providers\$action\templates\$template" #"$templatepath\plans\$template"
+							$workingDirectory = "$base\providers\$action\tasks\$data" #"$templatepath\plans\$template"
 							Write-Host "Set working directory:$workingDirectory"
 							$origLocation = Get-Location
 							if ($origLocation -ne $workingDirectory) { 
@@ -694,7 +731,7 @@ process {
 							$varFile = "$base\providers\$action\vars\$template\$template.tfvars"
 							$varFileTokens = "$base\env\$prefix\$resourceGroupName-$template-$action"
 							#$varFile = "$base\env\$prefix\$resourceGroupName-$template-$action"
-							Write-Host "Generating terraform plan $varFile"
+							Write-Host "Generating tfplan: $prefix-$envName-$task.tfplan"
 							if (Test-Path $varFile) {
 								Write-Host "Using:$varFile"
 								if (!(Test-Path "$base\env\$prefix\$resourceGroupName-$template-$action")) { New-Item "$base\$prefix\$resourceGroupName-$template-$action" -ItemType Directory | Out-Null}
@@ -709,7 +746,7 @@ process {
 								} else {
 									terraform plan -var-file="$varFileTokens" -destroy -out="$prefix-$envName-$task.tfplan" -input=false
 								}
-								#terraform apply "$prefix-$envName-$task.tfplan" -var-file="$varFileTokens" 
+								#terraform apply "$prefix-$envName-$task.tfplan" -var-file="$varFileTokens"
 							} else {
 								if ($action -eq 'tf') {
 									terraform plan -out="$prefix-$envName-$task.tfplan"
