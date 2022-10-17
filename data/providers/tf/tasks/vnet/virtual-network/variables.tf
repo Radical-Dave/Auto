@@ -10,8 +10,8 @@ variable "location" {
 variable "tags" {
   description = "Tags for the resource group"
   type        = map(string)
-  default     = {
+  default = {
     environment = "dev"
-    costcenter = "it"
+    costcenter  = "it"
   }
 }

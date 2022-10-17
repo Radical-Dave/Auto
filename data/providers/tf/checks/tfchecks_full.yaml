@@ -1,0 +1,71 @@
+---
+checks:
+  - code: CUS001
+    description: Custom check to ensure the Name tag is applied to Resources Group Module 
+    impact:  By not having Name Tag we can't keep track of our Resources
+    requiredTypes:
+      - module
+    requiredLabels:
+      - resource_group
+    severity: MEDIUM
+    matchSpec:
+     name: tag_map
+     action: contains
+     value: Name
+    errorMessage: The required Name tag was missing
+
+  - code: CUS002
+    description: Custom check to ensure the Environment tag is applied to Resources Group Module
+    impact:  By not having Environment Tag we can't keep track of our Resources
+    requiredTypes:
+      - module
+    requiredLabels:
+      - resource_group
+    severity: CRITICAL
+    matchSpec:
+      name: tag_map
+      action: contains
+      value: Environment
+    errorMessage: The required Environment tag was missing
+
+  - code: CUS003
+    description: Custom check to ensure Resource Group is going to be created in US East region
+    impact:  By not having our resource in US East we might get some latency
+    requiredTypes:
+      - module
+    requiredLabels:
+      - resource_group
+    severity: MEDIUM
+    matchSpec:
+     name: resource_group_location
+     action: equals
+     value: "US East"
+    errorMessage: The required "US East" location was missing
+
+  - code: CUS004
+    description: Custom check to ensure that suffix applied to All the Resource groups
+    impact:  By not having suffix we can't keep track of our Resources
+    requiredTypes:
+      - module
+    requiredLabels:
+      - resource_group
+    severity: MEDIUM
+    matchSpec:
+      name: resource_group_name
+      action: endsWith
+      value: Opstree-POC
+    errorMessage: The required suffix "Opstree-POC" was missing
+
+  - code: CUS005
+    description: Custom check to ensure that suffix applied to All the Virtual Networks
+    impact:  By not having suffix we can't keep track of our Virtual Networks
+    requiredTypes:
+      - module
+    requiredLabels:
+      - vnet
+    severity: MEDIUM
+    matchSpec:
+      name: vnet_name
+      action: endsWith
+      value: Opstree-POC
+    errorMessage:  The required suffix "Opstree-POC" was missing

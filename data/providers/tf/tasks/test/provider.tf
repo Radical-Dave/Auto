@@ -1,4 +1,4 @@
-terraform {  
+terraform {
   # backend "azurerm" {
   #   resource_group_name = "base-terraform-rg"
   #   storage_account_name = "baseterraformsa"
@@ -13,7 +13,7 @@ terraform {
       version = "~> 2.0.0"
     }
     azuredevops = {
-      source = "microsoft/azuredevops"
+      source  = "microsoft/azuredevops"
       version = ">=0.2.1"
     }
     azurerm = {
@@ -24,10 +24,10 @@ terraform {
 }
 provider "azuread" {}
 provider "azuredevops" {
-  org_service_url = var.azdo_org_service_url
-  personal_access_token = var.azdo_personal_access_token
+  org_service_url       = var.AZDO_URL
+  personal_access_token = var.AZDO_PAT
 }
-provider "azurerm" { 
+provider "azurerm" {
   subscription_id = var.subscription_id
   features {}
 }

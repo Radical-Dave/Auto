@@ -1,2 +1,2 @@
-resource_group_name="$(prefix)-$(envName)"
-location="$(location)"
+resource_group_name = "$(prefix)-$(envName)"
+location            = "$(location)"

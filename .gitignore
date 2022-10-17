@@ -10,6 +10,7 @@ data/logs
 *.terraform
 *.tfplan
 *.tfstate
+*.tfvars
 .terraform.lock.hcl
 *terraform.tfstate.backup
 *.terraformrc
@@ -18,3 +19,6 @@ data/logs
 .env
 .env.user
 *.csv
+*.pem
+terraformer.exe
+project*

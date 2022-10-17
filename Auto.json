@@ -12,8 +12,8 @@
     "install": "choco install $(data) -y",
     "install choco": "Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))",
     "report": "dir d:\\*.$(data) -recurse > $(data).txt",
-    "tfp": "Set-Location .\\data\\tf\\tasks\\peregrine; Invoke-Terra",
-    "tfa": "Set-Location .\\data\\tf\\tasks\\peregrine; Invoke-Terra",
+    "tfa": "Set-Location .\\data\\tf\\tasks\\aws\\_smoketest; Invoke-Terra",
+    "tfg": "Set-Location .\\data\\tf\\tasks\\google\\_smoketest; Invoke-Terra",
     "test": "invoke-pester .\\*$(data)*.tests.ps1 -output detailed -Verbose",
     "test-az": "invoke-pester .\\*$(data)*.az*.tests.ps1 -output detailed -Verbose",
     "test-tf": "invoke-pester .\\*$(data)*.tf*.tests.ps1 -output detailed -Verbose",
@@ -32,7 +32,7 @@
     "sc-latest2": "import-module ..\\..\\SharedSitecore\\SitecoreLocal\\src\\SitecoreLocal",
     "new-ssl": "import-module ..\\..\\SharedSitecore\\SitecoreLocal\\src\\SitecoreLocal -force ;New-SslCertificate *.dev.localhost -force -verbose",
     "sc-latest": "Import-Module ..\\..\\SharedSitecore\\SitecoreLocal\\src\\SitecoreLocal -force;Get-SitecoreCompatibility",
-    "search": "Get-ChildItem $path -recurse | Out-String -stream | Select-String -pattern \"$data\" | group path | select name > \"d:\\$data.report.txt\"",
+    "search": "Get-ChildItem $path -recurse | Out-String -stream | Select-String -pattern \"$data\" | group path | select name > \"d:\\$data.search.report.txt\"",
     "sync": "\"c:\\Program Files\\Grsync\\bin\\rsync -vrtzp --chmod=+rwx /cygdrive/d rsync@radical.local::data --rsync_password=tnas1FTW!\""
     //"sync": "\"c:\\Program Files\\Grsync\\bin\\rsync.exe -n -i -r -t -p -o -g -v -u -c -l -H -z /cygdrive/d rsync://rsync@radical.local:873/data --rsync_password=tnas1FTW!\""
   }

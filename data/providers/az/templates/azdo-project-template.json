@@ -1,0 +1,62 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "accountName": {
+            "type": "String",
+            "metadata": {
+                "description": "The accountName of the Azure DevOps account where the project is to be created."
+            }
+        },
+        "name": {
+            "type": "String",
+            "metadata": {
+                "description": "The name of the Azure DevOps project to be created."
+            }
+        },
+        // "location": {
+        //     "type": "String"
+        // },
+		"processTemplateId": {
+            "type": "String"
+        },
+        "versionControlOption": {
+            "type": "String"
+        },
+        "ownerUpn": {
+            "type": "String"
+        },
+
+        "applicationSource": {
+            "type": "object"
+        },
+        "applicationTarget": {
+            "type": "object"
+        },
+        "authorizationDetails": {
+            "type": "secureObject"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "name": "[parameters('name')]",
+            "type": "Microsoft.VisualStudio/account/project",
+            "location": "[resourceGroup().location]",
+            "apiVersion": "2014-04-01-preview", //2014-02-26
+            "dependsOn": [
+                "[concat('microsoft.visualstudio/account/', parameters('accountName'))]"
+            ],
+            "properties": {
+                "ProcessTemplateId": "[parameters('processTemplateId')]",
+                "VersionControlOption": "[parameters('versionControlOption')]",
+                "ownerUpn": "[parameters('ownerUpn')]",
+                "BootstrapPipelineTemplate": {
+                    "applicationSource": "[parameters('applicationSource')]",
+                    "applicationTarget": "[parameters('applicationTarget')]",
+                    "authorizationDetails": "[parameters('authorizationDetails')]"
+                }
+            }
+        }
+    ]
+}

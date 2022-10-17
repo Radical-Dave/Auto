@@ -1,0 +1,43 @@
+---
+checks:
+  - code: CUS001
+    description: Custom check to ensure the Name tag is applied to Resources Group Module 
+    impact:  By not having Name Tag we can't keep track of our Resources
+    requiredTypes:
+      - module
+    requiredLabels:
+      - resource_group
+    severity: MEDIUM
+    matchSpec:
+     name: tag_map
+     action: contains
+     value: Name
+    errorMessage: The required Name tag was missing
+
+  - code: CUS002
+    description: Custom check to ensure the Environment tag is applied to Resources Group Module
+    impact:  By not having Environment Tag we can't keep track of our Resources
+    requiredTypes:
+      - module
+    requiredLabels:
+      - resource_group
+    severity: CRITICAL
+    matchSpec:
+      name: tag_map
+      action: contains
+      value: Environment
+    errorMessage: The required Environment tag was missing
+
+  - code: CUS003
+    description: Custom check to ensure Resource Group is going to be created in US East region
+    impact:  By not having our resource in US East we might get some latency
+    requiredTypes:
+      - module
+    requiredLabels:
+      - resource_group
+    severity: MEDIUM
+    matchSpec:
+     name: resource_group_location
+     action: equals
+     value: "US East"
+    errorMessage: The required "US East" location was missing

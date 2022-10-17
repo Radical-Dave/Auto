@@ -1,0 +1,1 @@
+data "oci_identity_region_subscriptions" "activated" { tenancy_id = var.tenancy_ocid }

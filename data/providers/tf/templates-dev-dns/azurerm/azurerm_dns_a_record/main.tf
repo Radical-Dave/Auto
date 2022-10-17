@@ -1,0 +1,11 @@
+locals {
+  name = length(var.name != null ? var.name : "") > 0 ? var.name : "${var.resource_group_name}"
+}
+resource "azurerm_dns_a_record" "this" {
+  name                = local.name
+  records             = var.records
+  resource_group_name = var.resource_group_name
+  ttl                 = var.ttl
+  zone_name           = var.zone_name
+  tags                = var.tags
+}

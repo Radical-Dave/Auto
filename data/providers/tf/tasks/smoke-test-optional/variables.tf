@@ -1,9 +1,9 @@
-variable resource_group_name {
+variable "resource_group_name" {
   description = "The name of the resource group"
   type        = string
   default     = "aks-test"
 }
-variable location {
+variable "location" {
   description = "The location of the resource group"
   type        = string
   default     = "eastus"
@@ -15,7 +15,7 @@ variable "nsg_name" {
 }
 variable "nsg_rules" {
   description = "The name of the network security group"
-  type        = map(object({
+  type = map(object({
     name                        = string
     priority                    = number
     direction                   = string
@@ -37,7 +37,7 @@ variable "nsg_rules" {
       access                     = "Allow"
       protocol                   = "Tcp"
       source_port_range          = "*"
-      destination_port_range    = "443"
+      destination_port_range     = "443"
       source_address_prefix      = "AzureFrontDoor.Backend"
       destination_address_prefix = "VirtualNetwork"
     }
@@ -75,8 +75,8 @@ variable "frontdoor_backend" {
 }
 variable "frontdoor_loadbalancer_enabled" {
   description = "(Required) Enable the load balancer for Azure Front Door"
-  type = bool
-  default = true
+  type        = bool
+  default     = true
 }
 variable "frontdoor_custom_rules" {
   description = "The addresses of the virtual network"

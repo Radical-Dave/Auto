@@ -4,7 +4,7 @@
 #####################################################
 <#PSScriptInfo
 
-.VERSION 0.22
+.VERSION 0.23
 
 .GUID 602bc07e-a621-4738-8c27-0edf4a4cea8e
 
@@ -66,7 +66,8 @@ Param(
 	[Parameter(Mandatory = $false, Position=2)]
 	[string] $path = '',
 	[string] $adApp = 'DevOps',
-	[switch] $Force = $false
+	[switch] $Force = $false,
+	[switch] $recurse = $false
 )
 begin {
 	$Global:ErrorActionPreference = 'Stop'
@@ -200,9 +201,33 @@ process {
 			}
 			Write-Host "RESULTS:$results"
 		} else {
+			if ($PSBoundParameters.ContainsKey('recurse')) {
+				$filter = @('terraform') -contains $data ? "*.*" : "*.tf"
+				#if (@('terraform') -contains $data) { $filter = "*.tf"
+				Write-Host "action:$action"
+				Write-Host "data:$data"
+				Write-Host "filter:$filter"
+				$cwd = $PWD
+				#Get-ChildItem $data -recurse -exclude ".*" -include $filter | Foreach-Object {
+				#Get-ChildItem $data -Directory -recurse -exclude ".*" -include $filter | Foreach-Object {
+				#Get-ChildItem $data -recurse -exclude ".*" -include $filter | Select-Object Directory -Unique | Foreach-Object {	
+				$folders = Get-ChildItem -exclude ".*" -Path $data -Recurse | Where-Object {$_.PSIsContainer}# | ForEach-Object {
+				foreach($folder in $folders) {
+					if (Test-Path "$folder\$filter") {
+						Write-Host "### X:$folder"
+						Set-Location $folder -verbose
+						#Write-Host "### Set:${$_}"
+						#Write-Host "### Set:${$_.FullName}"
+						Invoke-Expression -Command $action -OutVariable $results
+					}
+				}
+				Write-Host "stop"
+				Set-Location $cwd
+				exit
+			}
 			#if ($action -ne 'help' -and $action -ne 'az' -and $action -ne 'tf') {
 			if (@('help','az','tf','tfd','sql') -notcontains $action) {
-				Write-Host "Task not found in $PSScriptName.json: $action, to add use: -addTask 'AutoScript'" -ForegroundColor White
+				Write-Host "!#$! Task not found in $PSScriptName.json: $action, to add use: -addTask 'AutoScript'" -ForegroundColor White
 			}
 			if ($action -eq 'sql') {
 				if(!$data) {$data = 'SELECT @@version'} #* FROM SYS.DATABASES #SYS_TABLES
@@ -529,12 +554,12 @@ process {
 					}
 				}
 				if ($action -eq 'tfsetup') {
-					#$tfContainerName = "base-terraform" #"$resourceGroupName-terraform"
+					#$tfContainerName = "base-terraform.exe" #"$resourceGroupName-terraform.exe"
 					$tfContainerName = "tfstate"
-					$tfstorageAccountName = "imaginebasesa" #$tfContainerName.Replace("-","") + 'sa'
+					$tfstorageAccountName = "projectbasesa" #$tfContainerName.Replace("-","") + 'sa'
 					$brgName = "base" #"$tfContainerName-rg"
-					$tfKeyVaultName = "imaginebase-kv" #"$tfContainerName-kv"
-					$tfKeyVaultSecret = "$resourceGroupName-terraform.tfstate"						
+					$tfKeyVaultName = "projectbase-kv" #"$tfContainerName-kv"
+					$tfKeyVaultSecret = "$resourceGroupName-terraform.tfstate"					
 					Write-Host "tfstorageAccountName:$tfstorageAccountName"
 
 					#$brgExists = $False
@@ -551,7 +576,7 @@ process {
 					#core-azure-devops
 					#
 					#az group create --name core-azure-devops --location centralus
-					#az deployment group create --name "ImaginePeregrine" --resource-group "core-azure-devops" --template-file "data\providers\az\templates\azdo-org.json" --parameters "data\providers\az\default\azdo-org-paramters.json"
+					#az deployment group create --name "ProjectName" --resource-group "core-azure-devops" --template-file "data\providers\az\templates\azdo-org.json" --parameters "data\providers\az\default\azdo-org-paramters.json"
 
 
 					Write-Host "brgExists:$brgExists"
@@ -721,9 +746,9 @@ process {
 							$origLocation = Get-Location
 							if ($origLocation -ne $workingDirectory) { 
 								Set-Location $workingDirectory
-								Write-Host "Executing terraform init:$workingDirectory"
-								terraform init
-								#terraform init -backend-config="storage_account_name=<YourAzureStorageAccountName>" -backend-config="container_name=tfstate" -backend-config="access_key=<YourStorageAccountAccessKey>" -backend-config="key=codelab.microsoft.tfstate"
+								Write-Host "Executing terraform.exe init:$workingDirectory"
+								terraform.exe init
+								#terraform.exe init -backend-config="storage_account_name=<YourAzureStorageAccountName>" -backend-config="container_name=tfstate" -backend-config="access_key=<YourStorageAccountAccessKey>" -backend-config="key=codelab.microsoft.tfstate"
 							}
 
 							Write-Host "Checking for vars"
@@ -741,26 +766,26 @@ process {
 								#Set-Location $workingDirectory
 								Write-Host "CurrentLocation:$(Get-Location)"
 								Write-Host "varFileTokens:$varFileTokens"
-								#terraform apply -var-file="$varFileTokens" -out="$prefix-$envName-$task.tfplan" -input=false
+								#terraform.exe apply -var-file="$varFileTokens" -out="$prefix-$envName-$task.tfplan" -input=false
 								if ($action -eq 'tf') {
-									terraform plan -var-file="$varFileTokens" -out="$prefix-$envName-$task.tfplan" -input=false
+									terraform.exe plan -var-file="$varFileTokens" -out="$prefix-$envName-$task.tfplan" -input=false
 								} else {
-									terraform plan -var-file="$varFileTokens" -destroy -out="$prefix-$envName-$task.tfplan" -input=false
+									terraform.exe plan -var-file="$varFileTokens" -destroy -out="$prefix-$envName-$task.tfplan" -input=false
 								}
-								#terraform apply "$prefix-$envName-$task.tfplan" -var-file="$varFileTokens"
+								#terraform.exe apply "$prefix-$envName-$task.tfplan" -var-file="$varFileTokens"
 							} else {
 								if ($action -eq 'tf') {
-									terraform plan -out="$prefix-$envName-$task.tfplan"
+									terraform.exe plan -out="$prefix-$envName-$task.tfplan"
 								} else {
-									terraform plan -destroy -out="$prefix-$envName-$task.tfplan"
+									terraform.exe plan -destroy -out="$prefix-$envName-$task.tfplan"
 								}
 
 							}
-							Write-Host "Applying terraform plan:$prefix-$envName-$task.tfplan"
+							Write-Host "Applying terraform.exe plan:$prefix-$envName-$task.tfplan"
 							if ($action -eq 'tf') {
-								terraform apply "$prefix-$envName-$task.tfplan"
+								terraform.exe apply "$prefix-$envName-$task.tfplan"
 							} else {
-								terraform -destroy apply "$prefix-$envName-$task.tfplan"
+								terraform.exe -destroy apply "$prefix-$envName-$task.tfplan"
 							}
 							if ((Get-Location) -ne $origLocation) { Set-Location $origLocation}
 						}

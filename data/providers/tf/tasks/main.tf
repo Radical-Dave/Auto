@@ -1,18 +1,18 @@
 terraform {
-  experiments = [module_variable_optional_attrs]
-  required_version = ">=0.14"  
+  experiments      = [module_variable_optional_attrs]
+  required_version = ">=0.14"
   required_providers {
     azurerm = {
-      source = "hashicorp/azurerm"
+      source  = "hashicorp/azurerm"
       version = "~>2.0"
     }
     azuredevops = {
-      source = "microsoft/azuredevops"
+      source  = "microsoft/azuredevops"
       version = ">=0.2.1"
     }
   }
   backend "azurerm" {
-    resource_group_name = "base-terraform-rg"
+    resource_group_name  = "base-terraform-rg"
     storage_account_name = "baseterraformsa"
     #container_name  = "smoke-test-terraform"
     #key = "smoke-test-terraform.tfstate"
@@ -21,23 +21,23 @@ terraform {
     key = "core-devops-azure/core-devops-azure.tfstate"
   }
 }
-provider "azurerm" { 
+provider "azurerm" {
   subscription_id = var.subscription_id
   features {}
 }
-provider "azuredevops" { 
+provider "azuredevops" {
 }
 locals {
-  #name = length(var.name) > 0 ? var.name : "peregrine" # appName? #"${var.resource_group_name}-kvk"
-  vault_name = length(var.vault_name) > 0 ? var.vault_name : "${var.resource_group_name}-kv"
+  #name = length(var.name) > 0 ? var.name : "project" # appName? #"${var.resource_group_name}-kvk"
+  vault_name           = length(var.vault_name) > 0 ? var.vault_name : "${var.resource_group_name}-kv"
   vault_resource_group = length(var.vault_resource_group) > 0 ? var.vault_resource_group : length(var.resource_group_name) > 0 ? "${var.resource_group_name}-rg" : "base-terraform-rg"
 }
 data "azurerm_key_vault" "key_vault" {
-  name = local.vault_name
+  name                = local.vault_name
   resource_group_name = local.vault_resource_group
 }
 data "azurerm_key_vault_secret" "ad_app" {
-  name = var.app_sp
+  name         = var.app_sp
   key_vault_id = data.azurerm_key_vault.key_vault.id
 }
 # data "external" "app_sp" {
@@ -55,25 +55,25 @@ data "azurerm_key_vault_secret" "ad_app" {
 
 
 module "azuredevops_project" {
-  source = "../../templates/azuredevops/azuredevops_project"
-  name = var.azdo_project
+  source              = "../../templates/azuredevops/azuredevops_project"
+  name                = var.azdo_project
   resource_group_name = "core-devops" #var.resource_group_name
-  location = var.location
+  location            = var.location
 }
 module "azuredevops_git_repository" {
-  source = "../../templates/azuredevops/azuredevops_git_repository"
+  source              = "../../templates/azuredevops/azuredevops_git_repository"
   resource_group_name = var.resource_group_name
-  location = var.location
+  location            = var.location
 }
 module "azuredevops_variable_group" {
-  source = "../../templates/azuredevops/azuredevops_variable_group"
+  source              = "../../templates/azuredevops/azuredevops_variable_group"
   resource_group_name = var.resource_group_name
-  location = var.location
+  location            = var.location
 }
 module "azuredevops_build_definition" {
-  source = "../../templates/azuredevops/azuredevops_build_definition"
+  source              = "../../templates/azuredevops/azuredevops_build_definition"
   resource_group_name = var.resource_group_name
-  location = var.location
+  location            = var.location
 }
 # module "azuredevops_serviceendpoint_azurecr" {
 #   source = "../../templates/azuredevops_serviceendpoint_azurecr"

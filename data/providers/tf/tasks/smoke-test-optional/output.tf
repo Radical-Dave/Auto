@@ -1,3 +1,3 @@
 output "name" {
-    value = module.resourcegroup.name
+  value = module.resourcegroup.name
 }

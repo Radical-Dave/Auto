@@ -1,4 +1,4 @@
-terraform {  
+terraform {
   # backend "azurerm" {
   #   resource_group_name = "base-terraform-rg"
   #   storage_account_name = "baseterraformsa"
@@ -9,7 +9,7 @@ terraform {
   required_version = ">=0.14.0"
   required_providers {
     azuredevops = {
-      source = "microsoft/azuredevops"
+      source  = "microsoft/azuredevops"
       version = ">=0.2.1"
     }
   }
@@ -17,12 +17,12 @@ terraform {
 
 # Set envvars: AZDO_PERSONAL_ACCESS_TOKEN, AZDO_ORG_SERVICE_URL
 provider "azuredevops" {
-  org_service_url = var.azdo_org_service_url
-  personal_access_token = var.azdo_personal_access_token
+  org_service_url       = var.AZDO_URL
+  personal_access_token = var.AZDO_PAT
 }
-# provider "azuread" {
+# provider azuread {
 # }
-# provider "azurerm" {
+# provider azurerm {
 #     features {
 #     # key_vault {
 #     #   purge_soft_delete_on_destroy = true

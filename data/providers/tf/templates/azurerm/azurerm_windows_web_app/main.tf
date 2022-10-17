@@ -1,33 +1,63 @@
 locals {
-  name = coalesce(var.name, length(coalesce(var.resource_group_name,""))>0 ? "${var.resource_group_name}-app" : "app")
-  kind = length(var.kind != null ? var.kind : "") > 0 ? var.kind : ""
-  location = coalesce(var.location, "eastus")
-  site_config = length(var.site_config != null ? var.site_config : {}) > 0 ? var.site_config : length(var.docker_repo != null ? var.docker_repo : "") == 0 ? {} : {
-    scm_type = "ExternalGit"
-    always_on = "true"
-    linux_fx_version = "DOCKER|${var.docker_repo}/${var.docker_app}:latest"
-    health_check_path = "/health"
-  }
+  connection_strings = length(var.connection_strings != null ? var.connection_strings : []) > 0 ? var.connection_strings : []
+  name               = coalesce(var.name, length(coalesce(var.resource_group_name, "")) > 0 ? "${var.resource_group_name}-app" : "app")
 }
 resource "azurerm_windows_web_app" "this" {
-  name = local.name
-  location = local.location
-  resource_group_name = var.resource_group_name
-  service_plan_id = var.service_plan_id
-  app_settings = var.app_settings
-  https_only = var.https_only
+  name                    = local.name
+  location                = var.location
+  resource_group_name     = var.resource_group_name
+  service_plan_id         = var.service_plan_id
+  app_settings            = var.app_settings
+  https_only              = var.https_only
   client_affinity_enabled = var.client_affinity_enabled
-  # site_config = var.site_config
-  dynamic "site_config" {
-    for_each = local.site_config != null ? [true] : []
+  dynamic "connection_string" {
+    for_each = local.connection_strings
     content {
-      #scm_type = local.site_config.scm_type
-      always_on = site_config.always_on
-      linux_fx_version = site_config.linux_fx_version
-      health_check_path = site_config.health_check_path
-      acr_use_managed_identity_credentials = false
-      http2_enabled = true      
+      name  = connection_string.value.name
+      type  = connection_string.value.type
+      value = connection_string.value.value
     }
   }
+  site_config {
+    always_on                               = var.always_on
+    container_registry_use_managed_identity = "false"
+    ftps_state                              = "Disabled"
+    health_check_path                       = var.health_check_path
+    dynamic "application_stack" {
+      for_each = var.docker_image != null && var.docker_image_tag != null && var.docker_registry != null ? [true] : []
+      content {
+        docker_container_name     = replace(var.docker_image, "${var.docker_registry}/", "")
+        docker_container_registry = var.docker_registry
+        docker_container_tag      = var.docker_image_tag
+      }
+    }
+    http2_enabled = true
+    worker_count  = 3
+    # dynamic "ip_restriction" {
+    #   for_each=local.ip_restriction
+    #   content {
+    #     name=ip_restriction.name != null ? ip_restriction.name : null
+    #     action=ip_restriction.action != null ? ip_restriction.action : null
+    #     ip_address=ip_restriction.ip_address != null ? ip_restriction.ip_address : null          
+    #     service_tag=ip_restriction.service_tag != null ? ip_restriction.service_tag : null
+    #     priority=ip_restriction.priority != null ? ip_restriction.priority : null
+    #     #description=ip_restriction.description != null ? ip_restriction.description : null
+    #     #virtual_network_subnet_id=ip_restriction.virtual_network_subnet_id != null  ? ip_restriction.virtual_network_subnet_id : null
+    #   }
+    # }
+  }
   tags = var.tags
+  dynamic "provisioner" {
+    for_each = local.git_repo != null ? [true] : []
+    content {
+      provisioner "local-exec" {
+        command    = var.git_repo != null ? "az functionapp deployment source config --ids ${self.service_plan_id} --repo-url ${var.git_repo} --branch ${var.git_branch} --manual-integration" : "true"
+        on_failure = continue
+      }
+    }
+  }
+  # provisioner "local-exec" {
+  #   command="${var.git_repo != null ? "az functionapp deployment source config --ids ${self.service_plan_id} --repo-url ${var.git_repo} --branch ${var.git_branch} --manual-integration" : "true"}"
+  #   on_failure=continue
+  # }
 }
