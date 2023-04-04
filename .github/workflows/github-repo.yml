@@ -51,7 +51,6 @@ on:
 
 permissions:
   contents: read
-working-directory: ${{ env.tf_actions_working_dir }}
 jobs:
   terraform:
     name: 'Terraform'
@@ -62,6 +61,7 @@ jobs:
     defaults:
       run:
         shell: bash
+        working-directory: ${{ env.tf_actions_working_dir }}
 
     steps:
     # Checkout the repository to the GitHub Actions runner
