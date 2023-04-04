@@ -61,7 +61,7 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: ${{ env.tf_actions_working_dir }}
+        working-directory: "./data/providers/tf/templates/aws/_smoketest" #${{ env.tf_actions_working_dir }}
 
     steps:
     # Checkout the repository to the GitHub Actions runner
